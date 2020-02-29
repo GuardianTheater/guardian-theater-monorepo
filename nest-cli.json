@@ -1,0 +1,39 @@
+{
+  "collection": "@nestjs/schematics",
+  "sourceRoot": "apps/guardian-theater/src",
+  "monorepo": true,
+  "root": "apps/guardian-theater",
+  "compilerOptions": {
+    "webpack": true,
+    "tsConfigPath": "apps/guardian-theater/tsconfig.app.json"
+  },
+  "projects": {
+    "guardian-theater": {
+      "type": "application",
+      "root": "apps/guardian-theater",
+      "entryFile": "main",
+      "sourceRoot": "apps/guardian-theater/src",
+      "compilerOptions": {
+        "tsConfigPath": "apps/guardian-theater/tsconfig.app.json"
+      }
+    },
+    "activity-harvester": {
+      "type": "application",
+      "root": "apps/activity-harvester",
+      "entryFile": "main",
+      "sourceRoot": "apps/activity-harvester/src",
+      "compilerOptions": {
+        "tsConfigPath": "apps/activity-harvester/tsconfig.app.json"
+      }
+    },
+    "shared-services": {
+      "type": "library",
+      "root": "libs/shared-services",
+      "entryFile": "index",
+      "sourceRoot": "libs/shared-services/src",
+      "compilerOptions": {
+        "tsConfigPath": "libs/shared-services/tsconfig.lib.json"
+      }
+    }
+  }
+}
