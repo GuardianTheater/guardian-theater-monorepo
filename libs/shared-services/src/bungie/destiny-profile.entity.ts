@@ -74,7 +74,7 @@ export class DestinyProfileEntity {
   })
   xboxNameMatchChecked?: string;
 
-  @OneToOne(() => TwitchAccountEntity, {
+  @ManyToOne(() => TwitchAccountEntity, {
     nullable: true,
   })
   @JoinColumn({ name: 'twitchNameMatch' })
@@ -86,7 +86,7 @@ export class DestinyProfileEntity {
   })
   twitchNameMatchChecked?: string;
 
-  @OneToOne(() => MixerAccountEntity, {
+  @ManyToOne(() => MixerAccountEntity, {
     nullable: true,
   })
   @JoinColumn({ name: 'mixerNameMatch' })

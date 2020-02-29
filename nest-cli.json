@@ -34,6 +34,15 @@
       "compilerOptions": {
         "tsConfigPath": "libs/shared-services/tsconfig.lib.json"
       }
+    },
+    "mixer-name-matcher": {
+      "type": "application",
+      "root": "apps/mixer-name-matcher",
+      "entryFile": "main",
+      "sourceRoot": "apps/mixer-name-matcher/src",
+      "compilerOptions": {
+        "tsConfigPath": "apps/mixer-name-matcher/tsconfig.app.json"
+      }
     }
   }
 }
