@@ -32,6 +32,47 @@ export class AppService {
     this.harvestActivityHistory();
   }
 
+  async primeAccounts() {
+    const accounts = [
+      {
+        displayName: 'chrisfried',
+        membershipType: 1,
+        membershipId: '4611686018445133002',
+      },
+      {
+        displayName: 'Malagate',
+        membershipType: 1,
+        membershipId: '4611686018428388819',
+      },
+      {
+        displayName: 'lVlr Bloomer',
+        membershipType: 1,
+        membershipId: '4611686018438442802',
+      },
+      {
+        displayName: 'RealAngryMonkey',
+        membershipType: 1,
+        membershipId: '4611686018429542374',
+      },
+      {
+        displayName: 'redmongo',
+        membershipType: 1,
+        membershipId: '4611686018430450544',
+      },
+    ];
+
+    for (let i = 0; i < accounts.length; i++) {
+      const account = accounts[i];
+      const profileEntity = new DestinyProfileEntity();
+      profileEntity.displayName = account.displayName;
+      profileEntity.membershipId = account.membershipId;
+      profileEntity.membershipType = account.membershipType;
+      profileEntity.pageLastVisited = new Date().toISOString();
+
+      await upsert(DestinyProfileEntity, profileEntity, 'membershipId');
+    }
+  }
+
   async harvestActivityHistory() {
     const staleVisitor = new Date(
       new Date().setDate(new Date().getDate() - 7),

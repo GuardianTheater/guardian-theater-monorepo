@@ -97,74 +97,89 @@ export class AppService {
       new Set(profileEntities.map(profile => profile.membershipId)),
     );
 
+    const uniqueMixerChannelEntities = [];
+
     for (let i = 0; i < uniqueMixerChannelIds.length; i++) {
       const channelId = uniqueMixerChannelIds[i];
       for (let j = 0; j < mixerChannelEntities.length; j++) {
         const channel = mixerChannelEntities[j];
         if (channel.id === channelId) {
-          upsert(MixerChannelEntity, channel, 'id')
-            .then(() =>
-              this.logger.log(
-                `Saved MixerChannelEntity ${channelId}`,
-                'MixerNameMatch',
-              ),
-            )
-            .catch(() =>
-              this.logger.error(
-                `Error saving MixerChannelEntity ${channelId}`,
-                'MixerNameMatch',
-              ),
-            );
+          uniqueMixerChannelEntities.push(channel);
           break;
         }
       }
     }
+
+    await upsert(MixerChannelEntity, uniqueMixerChannelEntities, 'id')
+      .then(() =>
+        this.logger.log(
+          `Saved ${uniqueMixerChannelEntities.length} Mixer Channel Entities`,
+          'MixerNameMatch',
+        ),
+      )
+      .catch(() =>
+        this.logger.error(
+          `Error saving ${uniqueMixerChannelEntities.length} Mixer Channel Entities`,
+          'MixerNameMatch',
+        ),
+      );
+
+    const uniqueMixerAccountEntities = [];
 
     for (let i = 0; i < uniqueMixerAccountIds.length; i++) {
       const accountId = uniqueMixerAccountIds[i];
       for (let j = 0; j < mixerAccountEntities.length; j++) {
         const account = mixerAccountEntities[j];
         if (account.id === accountId) {
-          upsert(MixerAccountEntity, account, 'id')
-            .then(() =>
-              this.logger.log(
-                `Saved MixerAccountEntity ${accountId}`,
-                'MixerNameMatch',
-              ),
-            )
-            .catch(() =>
-              this.logger.error(
-                `Error saving MixerAccountEntity ${accountId}`,
-                'MixerNameMatch',
-              ),
-            );
+          uniqueMixerAccountEntities.push(account);
           break;
         }
       }
     }
+
+    await upsert(MixerAccountEntity, uniqueMixerAccountEntities, 'id')
+      .then(() =>
+        this.logger.log(
+          `Saved ${uniqueMixerAccountEntities.length} Mixer Account Entities`,
+          'MixerNameMatch',
+        ),
+      )
+      .catch(() =>
+        this.logger.error(
+          `Error saving ${uniqueMixerAccountEntities} Mixer Account Entities`,
+          'MixerNameMatch',
+        ),
+      );
+
+    const uniqueDestinyProfileEntities = [];
 
     for (let i = 0; i < uniqueProfileIds.length; i++) {
       const profileId = uniqueProfileIds[i];
       for (let j = 0; j < mixerAccountEntities.length; j++) {
         const profile = profileEntities[j];
         if (profile.membershipId === profileId) {
-          upsert(DestinyProfileEntity, profile, 'membershipId')
-            .then(() =>
-              this.logger.log(
-                `Saved DestinyProfileEntity ${profile.membershipId}`,
-                'MixerNameMatch',
-              ),
-            )
-            .catch(e =>
-              this.logger.error(
-                e,
-                // `Error saving DestinyProfileEntity ${profile.membershipId}`,
-                'MixerNameMatch',
-              ),
-            );
+          uniqueDestinyProfileEntities.push(profile);
           break;
         }
       }
     }
+
+    await upsert(
+      DestinyProfileEntity,
+      uniqueDestinyProfileEntities,
+      'membershipId',
+    )
+      .then(() =>
+        this.logger.log(
+          `Saved ${uniqueDestinyProfileEntities.length} Destiny Profile Entities`,
+          'MixerNameMatch',
+        ),
+      )
+      .catch(e =>
+        this.logger.error(
+          `Error saving ${uniqueDestinyProfileEntities.length} Destiny Profile Entities`,
+          'MixerNameMatch',
+        ),
+      );
   }
 }
