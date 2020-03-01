@@ -16,6 +16,7 @@ import { PgcrEntity } from '@services/shared-services/bungie/pgcr.entity';
 import { DestinyProfileEntity } from '@services/shared-services/bungie/destiny-profile.entity';
 import upsert from '@services/shared-services/helpers/typeorm-upsert';
 import { Interval } from '@nestjs/schedule';
+import { XboxAccountEntity } from '@services/shared-services/xbox/xbox-account.entity';
 
 @Injectable()
 export class AppService {
@@ -213,6 +214,7 @@ export class AppService {
     const pgcrPromises = [];
     const pgcrEntities: PgcrEntity[] = [];
     const pgcrEntryEntities: PgcrEntryEntity[] = [];
+    const xboxAccountEntities: XboxAccountEntity[] = [];
     const destinyProfileEntities: DestinyProfileEntity[] = [];
 
     const createPgcrPromise = async (
@@ -250,6 +252,16 @@ export class AppService {
                 entry.player.destinyUserInfo.membershipId;
               entryEntity.profile.membershipType =
                 entry.player.destinyUserInfo.membershipType;
+
+              if (
+                entry.player.destinyUserInfo.membershipType ===
+                BungieMembershipType.TigerXbox
+              ) {
+                entryEntity.profile.xboxNameMatch = new XboxAccountEntity();
+                entryEntity.profile.xboxNameMatch.gamertag =
+                  entry.player.destinyUserInfo.displayName;
+                xboxAccountEntities.push(entryEntity.profile.xboxNameMatch);
+              }
 
               destinyProfileEntities.push(entryEntity.profile);
 
@@ -304,6 +316,42 @@ export class AppService {
     );
     this.logger.log(
       `Fetched ${pgcrPromises.length} PGCRs.`,
+      'ActivityHarvester',
+    );
+
+    const uniqueXboxGamertags = Array.from(
+      new Set(xboxAccountEntities.map(account => account.gamertag)),
+    );
+    const uniqueXboxAccounts = [];
+    for (let i = 0; i < uniqueXboxGamertags.length; i++) {
+      const gamertag = uniqueXboxGamertags[i];
+      for (let j = 0; j < xboxAccountEntities.length; j++) {
+        const xboxAccount = xboxAccountEntities[j];
+        if (xboxAccount.gamertag === gamertag) {
+          uniqueXboxAccounts.push(xboxAccount);
+          break;
+        }
+      }
+    }
+
+    this.logger.log(
+      `Saving ${uniqueXboxAccounts.length} Xbox Accounts...`,
+      'ActivityHarvester',
+    );
+    if (uniqueXboxAccounts.length) {
+      await upsert(
+        XboxAccountEntity,
+        uniqueXboxAccounts,
+        'gamertag',
+      ).catch(() =>
+        this.logger.error(
+          `Error saving ${uniqueXboxAccounts.length} Xbox Accounts.`,
+          'ActivityHarvester',
+        ),
+      );
+    }
+    this.logger.log(
+      `Saved ${uniqueXboxAccounts.length} Xbox Accounts.`,
       'ActivityHarvester',
     );
 
