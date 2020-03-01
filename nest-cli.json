@@ -52,6 +52,15 @@
       "compilerOptions": {
         "tsConfigPath": "apps/twitch-name-matcher/tsconfig.app.json"
       }
+    },
+    "destiny-to-bungie-profile-linker": {
+      "type": "application",
+      "root": "apps/destiny-to-bungie-profile-linker",
+      "entryFile": "main",
+      "sourceRoot": "apps/destiny-to-bungie-profile-linker/src",
+      "compilerOptions": {
+        "tsConfigPath": "apps/destiny-to-bungie-profile-linker/tsconfig.app.json"
+      }
     }
   }
 }

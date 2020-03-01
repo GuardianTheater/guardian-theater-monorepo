@@ -17,5 +17,5 @@ export class BungieProfileEntity {
     () => DestinyProfileEntity,
     profile => profile.bnetProfile,
   )
-  profiles: DestinyProfileEntity[];
+  profiles?: DestinyProfileEntity[];
 }
