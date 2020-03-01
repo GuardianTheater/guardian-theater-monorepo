@@ -39,7 +39,7 @@ export class AppService {
 
     const profileSearch = async (profile: DestinyProfileEntity) =>
       this.mixerService
-        .searchUser(profile.displayName.replace(' ', '_'))
+        .searchUser(profile.displayName.replace(/\s/g, '_'))
         .then(async res => {
           profile.mixerNameMatchChecked = new Date().toISOString();
           if (profile.membershipId) {
@@ -175,7 +175,7 @@ export class AppService {
           'MixerNameMatch',
         ),
       )
-      .catch(e =>
+      .catch(() =>
         this.logger.error(
           `Error saving ${uniqueDestinyProfileEntities.length} Destiny Profile Entities`,
           'MixerNameMatch',

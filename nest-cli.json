@@ -43,6 +43,15 @@
       "compilerOptions": {
         "tsConfigPath": "apps/mixer-name-matcher/tsconfig.app.json"
       }
+    },
+    "twitch-name-matcher": {
+      "type": "application",
+      "root": "apps/twitch-name-matcher",
+      "entryFile": "main",
+      "sourceRoot": "apps/twitch-name-matcher/src",
+      "compilerOptions": {
+        "tsConfigPath": "apps/twitch-name-matcher/tsconfig.app.json"
+      }
     }
   }
 }

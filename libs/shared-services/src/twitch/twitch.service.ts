@@ -1,5 +1,7 @@
 /* eslint-disable @typescript-eslint/camelcase */
 import { Injectable, HttpService } from '@nestjs/common';
+import { GetUsersResponse } from './twitch.types';
+import { AxiosResponse } from 'axios';
 
 @Injectable()
 export class TwitchService {
@@ -40,17 +42,31 @@ export class TwitchService {
         });
     }
   }
-  async getUsersFromLogin(login: string) {
+
+  async getUsersFromLogin(
+    logins: string[],
+  ): Promise<AxiosResponse<GetUsersResponse>> {
     const headers = await this.authenticateTwitch();
+
+    const strippedLogins = [];
+
+    for (let i = 0; i < logins.length; i++) {
+      let login = logins[i];
+      login = login.replace(/\s/g, '');
+      if (/^(\w+)$/.test(login) && login.length > 3 && login.length < 26) {
+        strippedLogins.push(encodeURIComponent(login));
+      }
+    }
+
+    const joinedLogins = strippedLogins.join('&login=');
+
+    console.log(joinedLogins);
 
     return this.httpService
       .request({
-        url: `https://api.twitch.tv/helix/users`,
+        url: `https://api.twitch.tv/helix/users?login=${joinedLogins}`,
         method: 'get',
         headers,
-        params: {
-          login,
-        },
       })
       .toPromise();
   }
