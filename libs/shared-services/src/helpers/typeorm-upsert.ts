@@ -15,9 +15,12 @@ export default function upsert(
 ): Promise<InsertResult> {
   const repo = getRepository(Entity);
   const row = Array.isArray(data) ? data[0] : data;
-  const keys = Object.keys(row);
+  let keys;
+  if (row && typeof row === 'object') {
+    keys = Object.keys(row);
+  }
 
-  if (keys.length < 1) {
+  if (!keys || keys.length < 1) {
     throw new Error('Cannot upsert without any values specified');
   }
 

@@ -459,10 +459,7 @@ export class AppService {
         ),
       );
     }
-    this.logger.log(
-      `Saved ${uniquePgcrs.length} PGCRs...`,
-      'ActivityHarvester',
-    );
+    this.logger.log(`Saved ${uniquePgcrs.length} PGCRs.`, 'ActivityHarvester');
 
     const uniqueEntryId = Array.from(
       new Set(

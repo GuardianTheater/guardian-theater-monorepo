@@ -60,8 +60,6 @@ export class TwitchService {
 
     const joinedLogins = strippedLogins.join('&login=');
 
-    console.log(joinedLogins);
-
     return this.httpService
       .request({
         url: `https://api.twitch.tv/helix/users?login=${joinedLogins}`,

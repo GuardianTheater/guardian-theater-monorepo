@@ -9,6 +9,9 @@ export class TwitchAccountEntity {
   @Column()
   login: string;
 
+  @Column()
+  displayName: string;
+
   @OneToMany(
     () => TwitchVideoEntity,
     clip => clip.user,
