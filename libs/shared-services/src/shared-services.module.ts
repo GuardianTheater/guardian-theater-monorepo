@@ -16,7 +16,6 @@ import { TwitchVideoEntity } from './twitch/twitch-video.entity';
 import { MixerAccountEntity } from './mixer/mixer-account.entity';
 import { MixerChannelEntity } from './mixer/mixer-channel.entity';
 import { MixerRecordingEntity } from './mixer/mixer-recording.entity';
-import { MixerVodEntity } from './mixer/mixer-vod.entity';
 
 @Module({
   imports: [
@@ -41,7 +40,6 @@ import { MixerVodEntity } from './mixer/mixer-vod.entity';
         MixerAccountEntity,
         MixerChannelEntity,
         MixerRecordingEntity,
-        MixerVodEntity,
       ],
       synchronize: true,
       ssl: {
@@ -61,7 +59,6 @@ import { MixerVodEntity } from './mixer/mixer-vod.entity';
       MixerAccountEntity,
       MixerChannelEntity,
       MixerRecordingEntity,
-      MixerVodEntity,
     ]),
   ],
   providers: [BungieService, MixerService, TwitchService, XboxService],

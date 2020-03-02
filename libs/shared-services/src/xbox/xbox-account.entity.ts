@@ -10,7 +10,7 @@ export class XboxAccountEntity {
     () => XboxClipEntity,
     clip => clip.xboxAccount,
   )
-  clips: XboxClipEntity[];
+  clips?: XboxClipEntity[];
 
   @Column('timestamptz', {
     nullable: true,

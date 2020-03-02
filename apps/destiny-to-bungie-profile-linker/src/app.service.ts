@@ -6,6 +6,7 @@ import { BungieService } from '@services/shared-services';
 import { BungieProfileEntity } from '@services/shared-services/bungie/bungie-profile.entity';
 import upsert from '@services/shared-services/helpers/typeorm-upsert';
 import { Interval } from '@nestjs/schedule';
+import uniqueEntityArray from '@services/shared-services/helpers/unique-entity-array';
 
 @Injectable()
 export class AppService {
@@ -14,7 +15,7 @@ export class AppService {
     private readonly logger: Logger,
   ) {}
 
-  @Interval(20000)
+  @Interval(30000)
   handleInterval() {
     this.linkBungieAccounts();
   }
@@ -75,79 +76,62 @@ export class AppService {
       requests.push(request);
     }
 
-    await Promise.all(requests).catch(() =>
-      this.logger.error(
-        `Error fetching ${profilesToCheck.length} Linked Profiles`,
-        'DestinyToBungieProfileLinker',
-      ),
-    );
-    this.logger.log(
-      `Fetched ${profilesToCheck.length} Linked Profiles`,
-      'DestinyToBungieProfileLinker',
-    );
-
-    const uniqueBungieMembershipIds = Array.from(
-      new Set(bungieProfiles.map(profile => profile.membershipId)),
-    );
-    const uniqueBungieProfiles = [];
-    for (let i = 0; i < uniqueBungieMembershipIds.length; i++) {
-      const membershipId = uniqueBungieMembershipIds[i];
-      for (let j = 0; j < bungieProfiles.length; j++) {
-        const profile = bungieProfiles[j];
-        if (profile.membershipId === membershipId) {
-          uniqueBungieProfiles.push(profile);
-          break;
-        }
-      }
+    if (requests.length) {
+      await Promise.all(requests)
+        .then(() => {
+          this.logger.log(
+            `Fetched ${profilesToCheck.length} Linked Profiles`,
+            'DestinyToBungieProfileLinker',
+          );
+        })
+        .catch(() =>
+          this.logger.error(
+            `Error fetching ${profilesToCheck.length} Linked Profiles`,
+            'DestinyToBungieProfileLinker',
+          ),
+        );
     }
+
+    const uniqueBungieProfiles = uniqueEntityArray(
+      bungieProfiles,
+      'membershipId',
+    );
 
     if (uniqueBungieProfiles.length) {
-      await upsert(
-        BungieProfileEntity,
-        uniqueBungieProfiles,
-        'membershipId',
-      ).catch(() =>
-        this.logger.error(
-          `Error saving ${uniqueBungieProfiles.length} Bungie Profiles.`,
-          'DestinyToBungieProfileLinker',
-        ),
-      );
-      this.logger.log(
-        `Saved ${uniqueBungieProfiles.length} Bungie Profiles.`,
-        'DestinyToBungieProfileLinker',
-      );
+      await upsert(BungieProfileEntity, uniqueBungieProfiles, 'membershipId')
+        .then(() =>
+          this.logger.log(
+            `Saved ${uniqueBungieProfiles.length} Bungie Profiles.`,
+            'DestinyToBungieProfileLinker',
+          ),
+        )
+        .catch(() =>
+          this.logger.error(
+            `Error saving ${uniqueBungieProfiles.length} Bungie Profiles.`,
+            'DestinyToBungieProfileLinker',
+          ),
+        );
     }
 
-    const uniqueDestinyMembershipIds = Array.from(
-      new Set(destinyProfiles.map(profile => profile.membershipId)),
+    const uniqueDestinyProfiles = uniqueEntityArray(
+      destinyProfiles,
+      'membershipId',
     );
-    const uniqueDestinyProfiles = [];
-    for (let i = 0; i < uniqueDestinyMembershipIds.length; i++) {
-      const membershipId = uniqueDestinyMembershipIds[i];
-      for (let j = 0; j < destinyProfiles.length; j++) {
-        const profile = destinyProfiles[j];
-        if (profile.membershipId === membershipId) {
-          uniqueDestinyProfiles.push(profile);
-          break;
-        }
-      }
-    }
 
     if (uniqueDestinyProfiles.length) {
-      await upsert(
-        DestinyProfileEntity,
-        uniqueDestinyProfiles,
-        'membershipId',
-      ).catch(() =>
-        this.logger.error(
-          `Error saving ${uniqueDestinyProfiles.length} Destiny Profiles.`,
-          'DestinyToBungieProfileLinker',
-        ),
-      );
-      this.logger.log(
-        `Saved ${uniqueDestinyProfiles.length} Destiny Profiles.`,
-        'DestinyToBungieProfileLinker',
-      );
+      await upsert(DestinyProfileEntity, uniqueDestinyProfiles, 'membershipId')
+        .then(() =>
+          this.logger.log(
+            `Saved ${uniqueDestinyProfiles.length} Destiny Profiles.`,
+            'DestinyToBungieProfileLinker',
+          ),
+        )
+        .catch(() =>
+          this.logger.error(
+            `Error saving ${uniqueDestinyProfiles.length} Destiny Profiles.`,
+            'DestinyToBungieProfileLinker',
+          ),
+        );
     }
   }
 }

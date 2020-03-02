@@ -1,6 +1,14 @@
-import { Entity, PrimaryColumn, Column, OneToMany } from 'typeorm';
+import {
+  Entity,
+  PrimaryColumn,
+  Column,
+  OneToMany,
+  ManyToOne,
+  JoinColumn,
+} from 'typeorm';
 import { DestinyProfileEntity } from './destiny-profile.entity';
 import { BungieMembershipType } from 'bungie-api-ts/user';
+import { TwitchAccountEntity } from '../twitch/twitch-account.entity';
 
 @Entity()
 export class BungieProfileEntity {
@@ -10,8 +18,17 @@ export class BungieProfileEntity {
   @Column()
   membershipType: BungieMembershipType;
 
-  @Column({ nullable: true })
-  twitchPartnershipIdentifier?: string;
+  @ManyToOne(() => TwitchAccountEntity, {
+    nullable: true,
+  })
+  @JoinColumn({ name: 'twitchPartnershipMatch' })
+  twitchPartnershipMatch?: TwitchAccountEntity;
+
+  @Column({
+    type: 'timestamptz',
+    nullable: true,
+  })
+  twitchPartnershipMatchChecked?: string;
 
   @OneToMany(
     () => DestinyProfileEntity,

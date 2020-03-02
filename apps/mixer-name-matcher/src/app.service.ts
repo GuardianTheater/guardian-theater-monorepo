@@ -7,6 +7,7 @@ import { MixerAccountEntity } from '@services/shared-services/mixer/mixer-accoun
 import { MixerChannelEntity } from '@services/shared-services/mixer/mixer-channel.entity';
 import upsert from '@services/shared-services/helpers/typeorm-upsert';
 import { UserWithChannel } from '@services/shared-services/mixer/mixer.types';
+import uniqueEntityArray from '@services/shared-services/helpers/unique-entity-array';
 
 @Injectable()
 export class AppService {
@@ -78,6 +79,7 @@ export class AppService {
         profile.mixerNameMatch.id = result.id;
         profile.mixerNameMatch.channel = new MixerChannelEntity();
         profile.mixerNameMatch.channel.id = result.channel?.id;
+        profile.mixerNameMatch.channel.token = result.channel?.token;
         if (profile.mixerNameMatch.id) {
           mixerAccountEntities.push(profile.mixerNameMatch);
         }
@@ -87,28 +89,18 @@ export class AppService {
       }
     }
 
-    const uniqueMixerChannelIds = Array.from(
-      new Set(mixerChannelEntities.map(channel => channel.id)),
+    const uniqueMixerChannelEntities: MixerChannelEntity[] = uniqueEntityArray(
+      mixerChannelEntities,
+      'id',
     );
-    const uniqueMixerAccountIds = Array.from(
-      new Set(mixerAccountEntities.map(account => account.id)),
+    const uniqueMixerAccountEntities: MixerAccountEntity[] = uniqueEntityArray(
+      mixerAccountEntities,
+      'id',
     );
-    const uniqueProfileIds = Array.from(
-      new Set(profileEntities.map(profile => profile.membershipId)),
+    const uniqueDestinyProfileEntities: DestinyProfileEntity[] = uniqueEntityArray(
+      profileEntities,
+      'membershipId',
     );
-
-    const uniqueMixerChannelEntities = [];
-
-    for (let i = 0; i < uniqueMixerChannelIds.length; i++) {
-      const channelId = uniqueMixerChannelIds[i];
-      for (let j = 0; j < mixerChannelEntities.length; j++) {
-        const channel = mixerChannelEntities[j];
-        if (channel.id === channelId) {
-          uniqueMixerChannelEntities.push(channel);
-          break;
-        }
-      }
-    }
 
     if (uniqueMixerChannelEntities.length) {
       await upsert(MixerChannelEntity, uniqueMixerChannelEntities, 'id')
@@ -126,19 +118,6 @@ export class AppService {
         );
     }
 
-    const uniqueMixerAccountEntities = [];
-
-    for (let i = 0; i < uniqueMixerAccountIds.length; i++) {
-      const accountId = uniqueMixerAccountIds[i];
-      for (let j = 0; j < mixerAccountEntities.length; j++) {
-        const account = mixerAccountEntities[j];
-        if (account.id === accountId) {
-          uniqueMixerAccountEntities.push(account);
-          break;
-        }
-      }
-    }
-
     if (uniqueMixerAccountEntities.length) {
       await upsert(MixerAccountEntity, uniqueMixerAccountEntities, 'id')
         .then(() =>
@@ -153,19 +132,6 @@ export class AppService {
             'MixerNameMatch',
           ),
         );
-    }
-
-    const uniqueDestinyProfileEntities = [];
-
-    for (let i = 0; i < uniqueProfileIds.length; i++) {
-      const profileId = uniqueProfileIds[i];
-      for (let j = 0; j < profileEntities.length; j++) {
-        const profile = profileEntities[j];
-        if (profile.membershipId === profileId) {
-          uniqueDestinyProfileEntities.push(profile);
-          break;
-        }
-      }
     }
 
     if (uniqueDestinyProfileEntities.length) {

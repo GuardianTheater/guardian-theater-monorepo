@@ -61,6 +61,24 @@
       "compilerOptions": {
         "tsConfigPath": "apps/destiny-to-bungie-profile-linker/tsconfig.app.json"
       }
+    },
+    "xbox-clip-fetcher": {
+      "type": "application",
+      "root": "apps/xbox-clip-fetcher",
+      "entryFile": "main",
+      "sourceRoot": "apps/xbox-clip-fetcher/src",
+      "compilerOptions": {
+        "tsConfigPath": "apps/xbox-clip-fetcher/tsconfig.app.json"
+      }
+    },
+    "mixer-recording-fetcher": {
+      "type": "application",
+      "root": "apps/mixer-recording-fetcher",
+      "entryFile": "main",
+      "sourceRoot": "apps/mixer-recording-fetcher/src",
+      "compilerOptions": {
+        "tsConfigPath": "apps/mixer-recording-fetcher/tsconfig.app.json"
+      }
     }
   }
 }

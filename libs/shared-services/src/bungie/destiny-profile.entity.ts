@@ -68,12 +68,6 @@ export class DestinyProfileEntity {
   })
   xboxNameMatch?: XboxAccountEntity;
 
-  @Column({
-    type: 'timestamptz',
-    nullable: true,
-  })
-  xboxNameMatchChecked?: string;
-
   @ManyToOne(() => TwitchAccountEntity, {
     nullable: true,
   })

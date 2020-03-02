@@ -1,5 +1,5 @@
 import { Injectable, HttpService } from '@nestjs/common';
-import { UserWithChannel } from './mixer.types';
+import { UserWithChannel, Recording } from './mixer.types';
 import { AxiosResponse } from 'axios';
 
 @Injectable()
@@ -19,7 +19,9 @@ export class MixerService {
       .toPromise();
   }
 
-  async getChannelRecordings(channelId: number) {
+  async getChannelRecordings(
+    channelId: number,
+  ): Promise<AxiosResponse<Recording[]>> {
     return this.httpService
       .request({
         method: 'get',

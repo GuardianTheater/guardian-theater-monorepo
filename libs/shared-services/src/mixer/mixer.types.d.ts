@@ -62,3 +62,31 @@ export interface Channel {
   vodsEnabled: boolean;
   costreamId?: string;
 }
+
+export interface Recording extends TimeStamped {
+  id: number;
+  channelId: number;
+  state: 'PROCESSING' | 'AVAILABLE' | 'DELETED';
+  viewsTotal: number;
+  expiresAt: string;
+  vods: VOD[];
+  viewed?: boolean;
+  name?: string;
+  typeId: number;
+  duration: number;
+  seen?: boolean;
+  contentId: string;
+}
+
+export interface VOD extends TimeStamped {
+  id: number;
+  baseUrl: string;
+  format: 'hls' | 'raw' | 'dash' | 'thumbnail' | 'chat';
+  data?: {
+    Width: number;
+    Height: number;
+    Fps?: number;
+    Bitrate?: number;
+  };
+  recordingId: number;
+}

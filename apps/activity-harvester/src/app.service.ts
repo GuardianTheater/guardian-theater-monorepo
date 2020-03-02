@@ -16,7 +16,7 @@ import { PgcrEntity } from '@services/shared-services/bungie/pgcr.entity';
 import { DestinyProfileEntity } from '@services/shared-services/bungie/destiny-profile.entity';
 import upsert from '@services/shared-services/helpers/typeorm-upsert';
 import { Interval } from '@nestjs/schedule';
-import { XboxAccountEntity } from '@services/shared-services/xbox/xbox-account.entity';
+import uniqueEntityArray from '@services/shared-services/helpers/unique-entity-array';
 
 @Injectable()
 export class AppService {
@@ -234,15 +234,21 @@ export class AppService {
     }
 
     this.logger.log(`Fetching Activity History...`, 'ActivityHarvester');
-    await Promise.all(activitiesPromises).catch(() =>
-      this.logger.error(`Error fetching Activity History`, 'ActivityHarvester'),
-    );
-    this.logger.log(`Fetched Activity History.`, 'ActivityHarvester');
+    await Promise.all(activitiesPromises)
+      .then(() =>
+        this.logger.log(`Fetched Activity History.`, 'ActivityHarvester'),
+      )
+      .catch(() =>
+        this.logger.error(
+          `Error fetching Activity History`,
+          'ActivityHarvester',
+        ),
+      );
 
     const uniqueInstanceId = Array.from(
       new Set(activities.map(activity => activity.activityDetails.instanceId)),
     );
-    const uniqueActivities = [];
+    const uniqueActivities: DestinyHistoricalStatsPeriodGroup[] = [];
     for (let i = 0; i < uniqueInstanceId.length; i++) {
       for (let j = 0; j < activities.length; j++) {
         if (activities[j].activityDetails.instanceId === uniqueInstanceId[i]) {
@@ -255,7 +261,6 @@ export class AppService {
     const pgcrPromises = [];
     const pgcrEntities: PgcrEntity[] = [];
     const pgcrEntryEntities: PgcrEntryEntity[] = [];
-    const xboxAccountEntities: XboxAccountEntity[] = [];
     const destinyProfileEntities: DestinyProfileEntity[] = [];
 
     const createPgcrPromise = async (
@@ -294,16 +299,6 @@ export class AppService {
               entryEntity.profile.membershipType =
                 entry.player.destinyUserInfo.membershipType;
 
-              if (
-                entry.player.destinyUserInfo.membershipType ===
-                BungieMembershipType.TigerXbox
-              ) {
-                entryEntity.profile.xboxNameMatch = new XboxAccountEntity();
-                entryEntity.profile.xboxNameMatch.gamertag =
-                  entry.player.destinyUserInfo.displayName;
-                xboxAccountEntities.push(entryEntity.profile.xboxNameMatch);
-              }
-
               destinyProfileEntities.push(entryEntity.profile);
 
               if (entry.values.team) {
@@ -331,7 +326,7 @@ export class AppService {
           }
         })
         .catch(() =>
-          this.logger.log(
+          this.logger.error(
             `Error fetching PGCR for ${activity.activityDetails.instanceId}`,
           ),
         );
@@ -340,126 +335,73 @@ export class AppService {
     for (let i = 0; i < activities.length; i++) {
       const activity = uniqueActivities[i];
       if (activity) {
-        const pgcrPromise = createPgcrPromise(activity);
+        const pgcrPromise = getRepository(PgcrEntity)
+          .createQueryBuilder('pgcr')
+          .where('pgcr.instanceId = :instanceId', {
+            instanceId: activity.activityDetails.instanceId,
+          })
+          .getOne()
+          .then(res => {
+            if (!res || !res.instanceId) {
+              return createPgcrPromise(activity);
+            }
+          });
         pgcrPromises.push(pgcrPromise);
       }
     }
 
-    this.logger.log(
-      `Fetching ${pgcrPromises.length} PGCRs...`,
-      'ActivityHarvester',
-    );
-    await Promise.all(pgcrPromises).catch(() =>
-      this.logger.error(
-        `Error fetching ${pgcrPromises.length} PGCRs.`,
-        'ActivityHarvester',
-      ),
-    );
-    this.logger.log(
-      `Fetched ${pgcrPromises.length} PGCRs.`,
-      'ActivityHarvester',
-    );
-
-    const uniqueXboxGamertags = Array.from(
-      new Set(xboxAccountEntities.map(account => account.gamertag)),
-    );
-    const uniqueXboxAccounts = [];
-    for (let i = 0; i < uniqueXboxGamertags.length; i++) {
-      const gamertag = uniqueXboxGamertags[i];
-      for (let j = 0; j < xboxAccountEntities.length; j++) {
-        const xboxAccount = xboxAccountEntities[j];
-        if (xboxAccount.gamertag === gamertag) {
-          uniqueXboxAccounts.push(xboxAccount);
-          break;
-        }
-      }
-    }
-
-    this.logger.log(
-      `Saving ${uniqueXboxAccounts.length} Xbox Accounts...`,
-      'ActivityHarvester',
-    );
-    if (uniqueXboxAccounts.length) {
-      await upsert(
-        XboxAccountEntity,
-        uniqueXboxAccounts,
-        'gamertag',
-      ).catch(() =>
+    await Promise.all(pgcrPromises)
+      .then(() =>
+        this.logger.log(
+          `Fetched ${pgcrPromises.length} PGCRs.`,
+          'ActivityHarvester',
+        ),
+      )
+      .catch(() =>
         this.logger.error(
-          `Error saving ${uniqueXboxAccounts.length} Xbox Accounts.`,
+          `Error fetching ${pgcrPromises.length} PGCRs.`,
           'ActivityHarvester',
         ),
       );
-    }
-    this.logger.log(
-      `Saved ${uniqueXboxAccounts.length} Xbox Accounts.`,
-      'ActivityHarvester',
+
+    const uniqueProfiles = uniqueEntityArray(
+      destinyProfileEntities,
+      'membershipId',
     );
 
-    const uniqueMembershipIds = Array.from(
-      new Set(destinyProfileEntities.map(entity => entity.membershipId)),
-    );
-    const uniqueProfiles = [];
-    for (let i = 0; i < uniqueMembershipIds.length; i++) {
-      const membershipId = uniqueMembershipIds[i];
-      for (let j = 0; j < destinyProfileEntities.length; j++) {
-        const entity = destinyProfileEntities[j];
-        if (entity.membershipId === membershipId) {
-          uniqueProfiles.push(entity);
-          break;
-        }
-      }
-    }
-
-    this.logger.log(
-      `Saving ${uniqueProfiles.length} Profiles...`,
-      'ActivityHarvester',
-    );
     if (uniqueProfiles.length) {
-      await upsert(
-        DestinyProfileEntity,
-        uniqueProfiles,
-        'membershipId',
-      ).catch(() =>
-        this.logger.error(
-          `Error saving ${uniqueProfiles.length} Profiles.`,
-          'ActivityHarvester',
-        ),
-      );
-    }
-    this.logger.log(
-      `Saved ${uniqueProfiles.length} Profiles.`,
-      'ActivityHarvester',
-    );
-
-    const uniquePgcrInstanceIds = Array.from(
-      new Set(pgcrEntities.map(entity => entity.instanceId)),
-    );
-    const uniquePgcrs = [];
-    for (let i = 0; i < uniquePgcrInstanceIds.length; i++) {
-      const instanceId = uniquePgcrInstanceIds[i];
-      for (let j = 0; j < pgcrEntities.length; j++) {
-        const entity = pgcrEntities[j];
-        if (entity.instanceId === instanceId) {
-          uniquePgcrs.push(entity);
-          break;
-        }
-      }
+      await upsert(DestinyProfileEntity, uniqueProfiles, 'membershipId')
+        .then(() =>
+          this.logger.log(
+            `Saved ${uniqueProfiles.length} Profiles.`,
+            'ActivityHarvester',
+          ),
+        )
+        .catch(() =>
+          this.logger.error(
+            `Error saving ${uniqueProfiles.length} Profiles.`,
+            'ActivityHarvester',
+          ),
+        );
     }
 
-    this.logger.log(
-      `Saving ${uniquePgcrs.length} PGCRs...`,
-      'ActivityHarvester',
-    );
+    const uniquePgcrs = uniqueEntityArray(pgcrEntities, 'instanceId');
+
     if (uniquePgcrs.length) {
-      await upsert(PgcrEntity, uniquePgcrs, 'instanceId').catch(() =>
-        this.logger.error(
-          `Error saving ${uniquePgcrs.length} PGCRs.`,
-          'ActivityHarvester',
-        ),
-      );
+      await upsert(PgcrEntity, uniquePgcrs, 'instanceId')
+        .then(() =>
+          this.logger.log(
+            `Saved ${uniquePgcrs.length} PGCRs.`,
+            'ActivityHarvester',
+          ),
+        )
+        .catch(() =>
+          this.logger.error(
+            `Error saving ${uniquePgcrs.length} PGCRs.`,
+            'ActivityHarvester',
+          ),
+        );
     }
-    this.logger.log(`Saved ${uniquePgcrs.length} PGCRs.`, 'ActivityHarvester');
 
     const uniqueEntryId = Array.from(
       new Set(
@@ -488,26 +430,21 @@ export class AppService {
       }
     }
 
-    this.logger.log(
-      `Saving ${uniqueEntries.length} Entries...`,
-      'ActivityHarvester',
-    );
     if (uniqueEntries.length) {
-      await upsert(
-        PgcrEntryEntity,
-        uniqueEntries,
-        'profile", "instance',
-      ).catch(() =>
-        this.logger.error(
-          `Error saving ${uniqueEntries.length} Entries.`,
-          'ActivityHarvester',
-        ),
-      );
+      await upsert(PgcrEntryEntity, uniqueEntries, 'profile", "instance')
+        .then(() =>
+          this.logger.log(
+            `Saved ${uniqueEntries.length} Entries.`,
+            'ActivityHarvester',
+          ),
+        )
+        .catch(() =>
+          this.logger.error(
+            `Error saving ${uniqueEntries.length} Entries.`,
+            'ActivityHarvester',
+          ),
+        );
     }
-    this.logger.log(
-      `Saved ${uniqueEntries.length} Entries.`,
-      'ActivityHarvester',
-    );
 
     const logTimestamps = [];
 

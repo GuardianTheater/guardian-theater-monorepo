@@ -6,6 +6,7 @@ import { User } from '@services/shared-services/twitch/twitch.types';
 import { TwitchAccountEntity } from '@services/shared-services/twitch/twitch-account.entity';
 import upsert from '@services/shared-services/helpers/typeorm-upsert';
 import { Interval } from '@nestjs/schedule';
+import uniqueEntityArray from '@services/shared-services/helpers/unique-entity-array';
 
 @Injectable()
 export class AppService {
@@ -89,37 +90,14 @@ export class AppService {
       }
     }
 
-    const uniqueTwitchIds = Array.from(
-      new Set(twitchAccountEntities.map(account => account.id)),
+    const uniqueTwitchAccountEntities = uniqueEntityArray(
+      twitchAccountEntities,
+      'id',
     );
-    const uniqueProfileIds = Array.from(
-      new Set(profiles.map(profile => profile.membershipId)),
+    const uniqueDestinyProfileEntities = uniqueEntityArray(
+      profiles,
+      'membershipId',
     );
-
-    const uniqueTwitchAccountEntities = [];
-    const uniqueDestinyProfileEntities = [];
-
-    for (let i = 0; i < uniqueTwitchIds.length; i++) {
-      const twitchId = uniqueTwitchIds[i];
-      for (let j = 0; j < twitchAccountEntities.length; j++) {
-        const account = twitchAccountEntities[j];
-        if (account.id === twitchId) {
-          uniqueTwitchAccountEntities.push(account);
-          break;
-        }
-      }
-    }
-
-    for (let i = 0; i < uniqueProfileIds.length; i++) {
-      const membershipId = uniqueProfileIds[i];
-      for (let j = 0; j < profiles.length; j++) {
-        const profile = profiles[j];
-        if (profile.membershipId === membershipId) {
-          uniqueDestinyProfileEntities.push(profile);
-          break;
-        }
-      }
-    }
 
     if (uniqueTwitchAccountEntities.length) {
       await upsert(TwitchAccountEntity, uniqueTwitchAccountEntities, 'id')
