@@ -32,6 +32,10 @@ export class AppService {
     const requests = [];
     const namesToCheck = [];
     const profiles: BungieProfileEntity[] = [];
+    const profileWithPartnershipName: {
+      profile: BungieProfileEntity;
+      name: string;
+    }[] = [];
 
     for (let i = 0; i < profilesToCheck.length; i++) {
       const profile = profilesToCheck[i];
@@ -48,6 +52,10 @@ export class AppService {
             partnerships?.Response[0]?.partnerType === PartnershipType.Twitch
           ) {
             namesToCheck.push(partnerships.Response[0].name);
+            profileWithPartnershipName.push({
+              profile,
+              name: partnerships.Response[0].name,
+            });
           }
         })
         .catch(() => {
@@ -71,54 +79,52 @@ export class AppService {
 
     const results = [];
 
-    await this.twitchService
-      .getUsersFromLogin(namesToCheck)
-      .then(res => {
-        if (res?.data?.data) {
-          for (let j = 0; j < res.data.data.length; j++) {
-            results.push(res.data.data[j]);
+    if (namesToCheck.length) {
+      await this.twitchService
+        .getUsersFromLogin(namesToCheck)
+        .then(res => {
+          if (res?.data?.data) {
+            for (let j = 0; j < res.data.data.length; j++) {
+              results.push(res.data.data[j]);
+            }
           }
-        }
-        this.logger.log(
-          `Fetched ${results.length} Twitch Accounts`,
-          'BungiePartnershipTwitchMatcher',
+          this.logger.log(
+            `Fetched ${results.length} Twitch Accounts`,
+            'BungiePartnershipTwitchMatcher',
+          );
+        })
+        .catch(() =>
+          this.logger.error(
+            `Error fetching ${namesToCheck.length} Twitch accounts`,
+            'BungiePartnershipTwitchMatcher',
+          ),
         );
-      })
-      .catch(() =>
-        this.logger.error(
-          `Error fetching ${namesToCheck.length} Twitch accounts`,
-          'BungiePartnershipTwitchMatcher',
-        ),
-      );
+    }
 
     const twitchAccountEntities: TwitchAccountEntity[] = [];
+    for (let i = 0; i < profileWithPartnershipName.length; i++) {
+      const profile = profileWithPartnershipName[i].profile;
+      const name = profileWithPartnershipName[i].name;
+      profile.twitchPartnershipMatchChecked = new Date().toISOString();
+
+      for (let j = 0; j < results.length; j++) {
+        const result = results[j];
+
+        if (name === result.login) {
+          profile.twitchPartnershipMatch = new TwitchAccountEntity();
+          profile.twitchPartnershipMatch.id = result.id;
+          profile.twitchPartnershipMatch.login = result.login;
+          profile.twitchPartnershipMatch.displayName = result.display_name;
+
+          twitchAccountEntities.push(profile.twitchPartnershipMatch);
+          break;
+        }
+      }
+      profiles.unshift(profile);
+    }
 
     for (let i = 0; i < profiles.length; i++) {
       const profile = profiles[i];
-      profile.twitchPartnershipMatchChecked = new Date().toISOString();
-
-      for (let j = 0; j < profile.profiles.length; j++) {
-        const destinyProfile = profile.profiles[j];
-
-        const noSpaceLowercaseName = destinyProfile.displayName
-          .replace(/\s/g, '')
-          .toLocaleLowerCase();
-
-        for (let k = 0; k < results.length; k++) {
-          const result = results[k];
-
-          if (noSpaceLowercaseName === result.login) {
-            profile.twitchPartnershipMatch = new TwitchAccountEntity();
-            profile.twitchPartnershipMatch.id = result.id;
-            profile.twitchPartnershipMatch.login = result.login;
-            profile.twitchPartnershipMatch.displayName = result.display_name;
-
-            twitchAccountEntities.push(profile.twitchPartnershipMatch);
-            break;
-          }
-        }
-      }
-
       delete profile.profiles;
     }
 
@@ -156,13 +162,13 @@ export class AppService {
         .then(() =>
           this.logger.log(
             `Saved ${uniqueBungieProfileEntities.length} Bungie Profile Entities`,
-            'TwitchNameMatch',
+            'BungiePartnershipTwitchMatcher',
           ),
         )
         .catch(() =>
           this.logger.error(
             `Error saving ${uniqueBungieProfileEntities.length} Bungie Profile Entities`,
-            'TwitchNameMatch',
+            'BungiePartnershipTwitchMatcher',
           ),
         );
     }
