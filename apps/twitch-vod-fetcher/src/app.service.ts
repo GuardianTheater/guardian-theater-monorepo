@@ -4,7 +4,7 @@ import { TwitchService } from '@services/shared-services';
 import { TwitchAccountEntity } from '@services/shared-services/twitch/twitch-account.entity';
 import { getConnection } from 'typeorm';
 import { TwitchVideoEntity } from '@services/shared-services/twitch/twitch-video.entity';
-import convertTwitchDurationToSeconds from '@services/shared-services/helpers/convert-twitch-duration-to-seconds';
+import { convertTwitchDurationToSeconds } from '@services/shared-services/helpers/twitch-duration-conversion';
 import uniqueEntityArray from '@services/shared-services/helpers/unique-entity-array';
 import upsert from '@services/shared-services/helpers/typeorm-upsert';
 
@@ -51,7 +51,12 @@ export class AppService {
     const vodPromises: Promise<any>[] = [];
 
     for (let i = 0; i < accountsToCheck.length; i++) {
-      const account = accountsToCheck[i];
+      const loadedAccount = accountsToCheck[i];
+      const account = new TwitchAccountEntity();
+      account.id = loadedAccount.id;
+      account.displayName = loadedAccount.displayName;
+      account.login = loadedAccount.login;
+
       account.lastRecordingCheck = new Date().toISOString();
       accountsToSave.push(account);
 

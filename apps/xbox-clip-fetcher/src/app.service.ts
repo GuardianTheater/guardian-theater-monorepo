@@ -57,17 +57,23 @@ export class AppService {
     const xboxClipFetchers: Promise<any>[] = [];
 
     for (let i = 0; i < profilesToCheck.length; i++) {
-      const profile = profilesToCheck[i];
-      if (!profile.xboxNameMatch) {
-        profile.xboxNameMatch = new XboxAccountEntity();
-        profile.xboxNameMatch.gamertag = profile.displayName;
-      }
-      profile.xboxNameMatch.lastClipCheck = new Date().toISOString();
+      const loadedProfile = profilesToCheck[i];
+      const profile = new DestinyProfileEntity();
+      profile.membershipId = loadedProfile.membershipId;
+      profile.membershipType = loadedProfile.membershipType;
+      profile.displayName = loadedProfile.displayName;
+
+      const xboxNameMatch = new XboxAccountEntity();
+      xboxNameMatch.gamertag = profile.displayName;
+      xboxNameMatch.lastClipCheck = new Date().toISOString();
+
+      profile.xboxNameMatch = xboxNameMatch;
+
       destinyProfileEntities.push(profile);
-      xboxAccountEntities.push(profile.xboxNameMatch);
+      xboxAccountEntities.push(xboxNameMatch);
 
       const clipFetcher = this.xboxService
-        .fetchConsoleDestiny2ClipsForGamertag(profile.xboxNameMatch.gamertag)
+        .fetchConsoleDestiny2ClipsForGamertag(xboxNameMatch.gamertag)
         .then(res => {
           const toSave: XboxClipEntity[] = [];
           if (res?.data?.gameClips) {
@@ -81,7 +87,7 @@ export class AppService {
               xboxClipEntity.gameClipId = clip.gameClipId;
               xboxClipEntity.scid = clip.scid;
               xboxClipEntity.xuid = clip.xuid;
-              xboxClipEntity.xboxAccount = profile.xboxNameMatch;
+              xboxClipEntity.xboxAccount = xboxNameMatch;
               xboxClipEntity.thumbnailUri = clip.thumbnails.pop().uri;
               xboxClipEntity.dateRecordedRange = `[${
                 clip.dateRecorded
@@ -150,10 +156,10 @@ export class AppService {
       'gameClipId',
     );
 
-    const uniqueXboxClipEntitiesToDelete = uniqueEntityArray(
-      xboxClipEntitiesToDelete,
-      'gameClipId',
-    );
+    // const uniqueXboxClipEntitiesToDelete = uniqueEntityArray(
+    //   xboxClipEntitiesToDelete,
+    //   'gameClipId',
+    // );
 
     if (uniqueXboxAccountEntities.length) {
       await upsert(XboxAccountEntity, uniqueXboxAccountEntities, 'gamertag')

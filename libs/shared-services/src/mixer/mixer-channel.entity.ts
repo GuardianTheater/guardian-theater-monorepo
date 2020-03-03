@@ -14,7 +14,7 @@ export class MixerChannelEntity {
     () => MixerRecordingEntity,
     recording => recording.channel,
   )
-  recordings: MixerAccountEntity[];
+  recordings: MixerRecordingEntity[];
 
   @Column('timestamptz', {
     nullable: true,

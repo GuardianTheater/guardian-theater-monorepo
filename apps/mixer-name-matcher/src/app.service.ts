@@ -22,7 +22,7 @@ export class AppService {
   }
 
   async mixerNameMatch() {
-    const profiles = await getConnection()
+    const loadedProfiles = await getConnection()
       .createQueryBuilder(DestinyProfileEntity, 'profile')
       .where('profile.mixerNameMatchChecked is null')
       .limit(250)
@@ -57,8 +57,13 @@ export class AppService {
           ),
         );
 
-    for (let i = 0; i < profiles.length; i++) {
-      const profile = profiles[i];
+    for (let i = 0; i < loadedProfiles.length; i++) {
+      const loadedProfile = loadedProfiles[i];
+      const profile = new DestinyProfileEntity();
+      profile.displayName = loadedProfile.displayName;
+      profile.membershipId = loadedProfile.membershipId;
+      profile.membershipType = loadedProfile.membershipType;
+
       const search = profileSearch(profile);
       allSearches.push(search);
     }
@@ -74,17 +79,22 @@ export class AppService {
       const profile = results[i].profile;
       const result = results[i].result;
       if (result?.username === profile.displayName) {
-        profile.mixerNameMatch = new MixerAccountEntity();
-        profile.mixerNameMatch.username = result.username;
-        profile.mixerNameMatch.id = result.id;
-        profile.mixerNameMatch.channel = new MixerChannelEntity();
-        profile.mixerNameMatch.channel.id = result.channel?.id;
-        profile.mixerNameMatch.channel.token = result.channel?.token;
-        if (profile.mixerNameMatch.id) {
-          mixerAccountEntities.push(profile.mixerNameMatch);
+        const mixerNameMatch = new MixerAccountEntity();
+        mixerNameMatch.username = result.username;
+        mixerNameMatch.id = result.id;
+
+        const channel = new MixerChannelEntity();
+        channel.id = result.channel?.id;
+        channel.token = result.channel?.token;
+
+        mixerNameMatch.channel = channel;
+        profile.mixerNameMatch = mixerNameMatch;
+
+        if (mixerNameMatch.id) {
+          mixerAccountEntities.push(mixerNameMatch);
         }
-        if (profile.mixerNameMatch.channel.id) {
-          mixerChannelEntities.push(profile.mixerNameMatch.channel);
+        if (channel.id) {
+          mixerChannelEntities.push(channel);
         }
       }
     }

@@ -21,14 +21,14 @@ export class AppService {
   }
 
   async twitchNameMatch() {
-    const profiles = await getConnection()
+    const loadedProfiles = await getConnection()
       .createQueryBuilder(DestinyProfileEntity, 'profile')
       .where('profile.twitchNameMatchChecked is null')
       .limit(1000)
       .getMany();
 
     const uniqueNames = Array.from(
-      new Set(profiles.map(profile => profile.displayName)),
+      new Set(loadedProfiles.map(profile => profile.displayName)),
     );
 
     const nameChunks = [];
@@ -66,9 +66,15 @@ export class AppService {
     );
 
     const twitchAccountEntities: TwitchAccountEntity[] = [];
+    const destinyProfileEntities: DestinyProfileEntity[] = [];
 
-    for (let i = 0; i < profiles.length; i++) {
-      const profile = profiles[i];
+    for (let i = 0; i < loadedProfiles.length; i++) {
+      const loadedProfile = loadedProfiles[i];
+      const profile = new DestinyProfileEntity();
+      profile.membershipId = loadedProfile.membershipId;
+      profile.membershipType = loadedProfile.membershipType;
+      profile.displayName = loadedProfile.displayName;
+
       profile.twitchNameMatchChecked = new Date().toISOString();
 
       const noSpaceLowercaseName = profile.displayName
@@ -79,15 +85,19 @@ export class AppService {
         const result = results[j];
 
         if (noSpaceLowercaseName === result.login) {
-          profile.twitchNameMatch = new TwitchAccountEntity();
-          profile.twitchNameMatch.id = result.id;
-          profile.twitchNameMatch.login = result.login;
-          profile.twitchNameMatch.displayName = result.display_name;
+          const twitchNameMatch = new TwitchAccountEntity();
+          twitchNameMatch.id = result.id;
+          twitchNameMatch.login = result.login;
+          twitchNameMatch.displayName = result.display_name;
 
-          twitchAccountEntities.push(profile.twitchNameMatch);
+          profile.twitchNameMatch = twitchNameMatch;
+
+          twitchAccountEntities.push(twitchNameMatch);
           break;
         }
       }
+
+      destinyProfileEntities.push(profile);
     }
 
     const uniqueTwitchAccountEntities = uniqueEntityArray(
@@ -95,7 +105,7 @@ export class AppService {
       'id',
     );
     const uniqueDestinyProfileEntities = uniqueEntityArray(
-      profiles,
+      destinyProfileEntities,
       'membershipId',
     );
 

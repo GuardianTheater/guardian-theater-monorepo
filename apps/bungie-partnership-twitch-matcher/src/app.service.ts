@@ -38,7 +38,12 @@ export class AppService {
     }[] = [];
 
     for (let i = 0; i < profilesToCheck.length; i++) {
-      const profile = profilesToCheck[i];
+      const loadedProfile = profilesToCheck[i];
+      const profile = new BungieProfileEntity();
+      profile.membershipId = loadedProfile.membershipId;
+      profile.membershipType = loadedProfile.membershipType;
+      profile.profiles = loadedProfile.profiles;
+
       profile.twitchPartnershipMatchChecked = new Date().toISOString();
       profiles.push(profile);
 
@@ -111,12 +116,13 @@ export class AppService {
         const result = results[j];
 
         if (name === result.login) {
-          profile.twitchPartnershipMatch = new TwitchAccountEntity();
-          profile.twitchPartnershipMatch.id = result.id;
-          profile.twitchPartnershipMatch.login = result.login;
-          profile.twitchPartnershipMatch.displayName = result.display_name;
+          const twitchPartnershipMatch = new TwitchAccountEntity();
+          twitchPartnershipMatch.id = result.id;
+          twitchPartnershipMatch.login = result.login;
+          twitchPartnershipMatch.displayName = result.display_name;
 
-          twitchAccountEntities.push(profile.twitchPartnershipMatch);
+          profile.twitchPartnershipMatch = twitchPartnershipMatch;
+          twitchAccountEntities.push(twitchPartnershipMatch);
           break;
         }
       }

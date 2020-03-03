@@ -50,7 +50,11 @@ export class AppService {
     const recordingsPromises: Promise<any>[] = [];
 
     for (let i = 0; i < channelsToCheck.length; i++) {
-      const channel = channelsToCheck[i];
+      const loadedChannel = channelsToCheck[i];
+      const channel = new MixerChannelEntity();
+      channel.id = loadedChannel.id;
+      channel.token = loadedChannel.token;
+
       channel.lastRecordingCheck = new Date().toISOString();
       channelsToSave.push(channel);
 

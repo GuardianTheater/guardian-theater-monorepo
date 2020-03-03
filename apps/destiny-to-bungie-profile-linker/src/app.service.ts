@@ -32,7 +32,11 @@ export class AppService {
     const bungieProfiles: BungieProfileEntity[] = [];
 
     for (let i = 0; i < profilesToCheck.length; i++) {
-      const profile = profilesToCheck[i];
+      const loadedProfile = profilesToCheck[i];
+      const profile = new DestinyProfileEntity();
+      profile.membershipId = loadedProfile.membershipId;
+      profile.membershipType = loadedProfile.membershipType;
+      profile.displayName = loadedProfile.displayName;
 
       const request = getLinkedProfiles(
         config => this.bungieService.bungieRequest(config),
@@ -44,7 +48,6 @@ export class AppService {
       )
         .then(linkedProfiles => {
           profile.bnetProfileChecked = new Date().toISOString();
-          destinyProfiles.push(profile);
           if (linkedProfiles.Response.bnetMembership) {
             const bnetProfile = new BungieProfileEntity();
             bnetProfile.membershipId =
@@ -54,7 +57,10 @@ export class AppService {
 
             profile.bnetProfile = bnetProfile;
             bungieProfiles.push(bnetProfile);
+          }
+          destinyProfiles.push(profile);
 
+          if (linkedProfiles.Response.bnetMembership) {
             for (let j = 0; j < linkedProfiles.Response.profiles.length; j++) {
               const linkedProfile = linkedProfiles.Response.profiles[j];
               if (linkedProfile.membershipId !== profile.membershipId) {
