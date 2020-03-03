@@ -41,7 +41,7 @@ export class AppService {
           staleCheck,
         },
       )
-      .limit(500)
+      .limit(250)
       .getMany();
 
     // TODO: Check if any linked profiles have played Destiny since the dateCutOff,
