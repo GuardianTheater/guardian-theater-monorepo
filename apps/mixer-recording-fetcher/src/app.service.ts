@@ -87,12 +87,12 @@ export class AppService {
     if (recordingsPromises.length) {
       this.logger.log(
         `Fetching Mixer Recordings for ${recordingsPromises.length} channels.`,
-        'XboxClipFetcher',
+        'MixerRecordingFetcher',
       );
       await Promise.all(recordingsPromises);
       this.logger.log(
         `Fetched Mixer Recordings for ${recordingsPromises.length} channels.`,
-        'XboxClipFetcher',
+        'MixerRecordingFetcher',
       );
     }
 

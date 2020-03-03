@@ -15,7 +15,7 @@ export class AppService {
     private readonly logger: Logger,
   ) {}
 
-  @Interval(30000)
+  @Interval(60000)
   handleInterval() {
     this.linkBungieAccounts();
   }

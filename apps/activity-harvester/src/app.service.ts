@@ -92,7 +92,7 @@ export class AppService {
         },
       )
       .orderBy('profile.activitiesLastChecked')
-      .limit(25)
+      .limit(10)
       .getMany();
 
     if (usersToCheck.length) {
@@ -233,7 +233,6 @@ export class AppService {
       }
     }
 
-    this.logger.log(`Fetching Activity History...`, 'ActivityHarvester');
     await Promise.all(activitiesPromises)
       .then(() =>
         this.logger.log(`Fetched Activity History.`, 'ActivityHarvester'),

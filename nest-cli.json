@@ -79,6 +79,15 @@
       "compilerOptions": {
         "tsConfigPath": "apps/mixer-recording-fetcher/tsconfig.app.json"
       }
+    },
+    "bungie-partnership-twitch-matcher": {
+      "type": "application",
+      "root": "apps/bungie-partnership-twitch-matcher",
+      "entryFile": "main",
+      "sourceRoot": "apps/bungie-partnership-twitch-matcher/src",
+      "compilerOptions": {
+        "tsConfigPath": "apps/bungie-partnership-twitch-matcher/tsconfig.app.json"
+      }
     }
   }
 }
