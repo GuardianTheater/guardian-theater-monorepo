@@ -46,23 +46,25 @@ export class AppService {
           profile.bnetProfileChecked = new Date().toISOString();
           destinyProfiles.push(profile);
           if (linkedProfiles.Response.bnetMembership) {
-            profile.bnetProfile = new BungieProfileEntity();
-            bungieProfiles.push(profile.bnetProfile);
-            profile.bnetProfile.membershipId =
+            const bnetProfile = new BungieProfileEntity();
+            bnetProfile.membershipId =
               linkedProfiles.Response.bnetMembership.membershipId;
-            profile.bnetProfile.membershipType =
+            bnetProfile.membershipType =
               linkedProfiles.Response.bnetMembership.membershipType;
+
+            profile.bnetProfile = bnetProfile;
+            bungieProfiles.push(bnetProfile);
 
             for (let j = 0; j < linkedProfiles.Response.profiles.length; j++) {
               const linkedProfile = linkedProfiles.Response.profiles[j];
               if (linkedProfile.membershipId !== profile.membershipId) {
                 const childProfile = new DestinyProfileEntity();
-                destinyProfiles.push(childProfile);
                 childProfile.bnetProfile = profile.bnetProfile;
                 childProfile.bnetProfileChecked = new Date().toISOString();
                 childProfile.displayName = linkedProfile.displayName;
                 childProfile.membershipId = linkedProfile.membershipId;
                 childProfile.membershipType = linkedProfile.membershipType;
+                destinyProfiles.push(childProfile);
               }
             }
           }
