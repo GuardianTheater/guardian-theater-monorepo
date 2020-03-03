@@ -17,4 +17,9 @@ export class TwitchAccountEntity {
     clip => clip.user,
   )
   videos: TwitchVideoEntity[];
+
+  @Column('timestamptz', {
+    nullable: true,
+  })
+  lastRecordingCheck?: string;
 }

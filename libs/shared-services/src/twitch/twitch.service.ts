@@ -1,6 +1,6 @@
 /* eslint-disable @typescript-eslint/camelcase */
 import { Injectable, HttpService } from '@nestjs/common';
-import { GetUsersResponse } from './twitch.types';
+import { GetUsersResponse, GetVideosResponse } from './twitch.types';
 import { AxiosResponse } from 'axios';
 
 @Injectable()
@@ -89,7 +89,7 @@ export class TwitchService {
       .toPromise();
   }
 
-  async getVideos(user_id: string) {
+  async getVideos(user_id: string): Promise<AxiosResponse<GetVideosResponse>> {
     const headers = await this.authenticateTwitch();
     return this.httpService
       .request({

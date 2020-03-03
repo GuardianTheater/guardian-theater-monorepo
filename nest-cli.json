@@ -88,6 +88,15 @@
       "compilerOptions": {
         "tsConfigPath": "apps/bungie-partnership-twitch-matcher/tsconfig.app.json"
       }
+    },
+    "twitch-vod-fetcher": {
+      "type": "application",
+      "root": "apps/twitch-vod-fetcher",
+      "entryFile": "main",
+      "sourceRoot": "apps/twitch-vod-fetcher/src",
+      "compilerOptions": {
+        "tsConfigPath": "apps/twitch-vod-fetcher/tsconfig.app.json"
+      }
     }
   }
 }

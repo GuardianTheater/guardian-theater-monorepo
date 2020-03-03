@@ -25,5 +25,5 @@ export class TwitchVideoEntity {
   url: string;
 
   @Column()
-  thumbnail_url: string;
+  thumbnailUrl: string;
 }
