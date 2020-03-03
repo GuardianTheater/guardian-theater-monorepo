@@ -39,6 +39,7 @@ export class AppService {
 
     for (let i = 0; i < profilesToCheck.length; i++) {
       const profile = profilesToCheck[i];
+      profile.twitchPartnershipMatchChecked = new Date().toISOString();
       profiles.push(profile);
 
       const request = getPartnerships(
@@ -105,7 +106,6 @@ export class AppService {
     for (let i = 0; i < profileWithPartnershipName.length; i++) {
       const profile = profileWithPartnershipName[i].profile;
       const name = profileWithPartnershipName[i].name;
-      profile.twitchPartnershipMatchChecked = new Date().toISOString();
 
       for (let j = 0; j < results.length; j++) {
         const result = results[j];
