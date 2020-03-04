@@ -195,7 +195,7 @@ export class AppService {
             const mixerOffset = convertSecondsToTwitchDuration(offset);
             const video = {
               type: 'mixer',
-              url: `https://mixer.com/${entryProfile.mixerNameMatch?.channel?.token}?vod=${mixerRecording.id}$t=${mixerOffset}`,
+              url: `https://mixer.com/${entryProfile.mixerNameMatch?.channel?.token}?vod=${mixerRecording.id}&t=${mixerOffset}`,
             };
             encounteredVideos.push(video);
           }
