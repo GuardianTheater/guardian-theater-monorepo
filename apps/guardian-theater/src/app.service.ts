@@ -1,18 +1,57 @@
-import { Injectable } from '@nestjs/common';
+import { Injectable, Logger } from '@nestjs/common';
 import { getConnection } from 'typeorm';
 import { DestinyProfileEntity } from '@services/shared-services/bungie/destiny-profile.entity';
 import { PgcrEntryEntity } from '@services/shared-services/bungie/pgcr-entry.entity';
 import { convertSecondsToTwitchDuration } from '@services/shared-services/helpers/twitch-duration-conversion';
+import { BungieMembershipType } from 'bungie-api-ts/user';
+import { getProfile, DestinyComponentType } from 'bungie-api-ts/destiny2';
+import { BungieService } from '@services/shared-services';
+import upsert from '@services/shared-services/helpers/typeorm-upsert';
 
 @Injectable()
 export class AppService {
-  async getAllEncounteredVideos(membershipId: string) {
+  constructor(
+    private readonly bungieService: BungieService,
+    private readonly logger: Logger,
+  ) {}
+  async getAllEncounteredVideos(
+    membershipType: BungieMembershipType,
+    destinyMembershipId: string,
+  ) {
+    await getProfile(config => this.bungieService.bungieRequest(config), {
+      membershipType,
+      destinyMembershipId,
+      components: [DestinyComponentType.Profiles],
+    })
+      .then(async fetchedProfile => {
+        const userInfo = fetchedProfile?.Response?.profile?.data?.userInfo;
+        if (userInfo) {
+          const updateProfile = new DestinyProfileEntity();
+          updateProfile.displayName = userInfo.displayName;
+          updateProfile.membershipId = userInfo.membershipId;
+          updateProfile.membershipType = userInfo.membershipType;
+          updateProfile.pageLastVisited = new Date().toISOString();
+          return upsert(
+            DestinyProfileEntity,
+            updateProfile,
+            'membershipId',
+          ).catch(() =>
+            this.logger.error(
+              `Error Saving Profile - ${updateProfile.membershipId}`,
+            ),
+          );
+        }
+      })
+      .catch(() =>
+        this.logger.error(`Error Fetching Profile - ${destinyMembershipId}`),
+      );
+
     const profile = await getConnection()
       .createQueryBuilder(DestinyProfileEntity, 'profile')
       .leftJoinAndSelect('profile.bnetProfile', 'bnetProfile')
       .leftJoinAndSelect('bnetProfile.profiles', 'profiles')
-      .where('profile.membershipId = :membershipId', {
-        membershipId,
+      .where('profile.membershipId = :destinyMembershipId', {
+        destinyMembershipId,
       })
       .getOne();
 
@@ -23,7 +62,7 @@ export class AppService {
         membershipIds.push(profile.bnetProfile.profiles[i].membershipId);
       }
     } else {
-      membershipIds.push(membershipId);
+      membershipIds.push(destinyMembershipId);
     }
 
     const entries = await getConnection()
@@ -60,37 +99,6 @@ export class AppService {
         'bnetTwitch.videos',
         'bnetVideos',
         'entry.timePlayedRange && bnetVideos.durationRange',
-      )
-      .leftJoinAndSelect(
-        'bnetProfile.profiles',
-        'linkedProfiles',
-        'linkedProfiles.membershipId != profiles.membershipId',
-      )
-      .leftJoinAndSelect(
-        'linkedProfiles.xboxNameMatch',
-        'linkedProfilesXbox',
-        'instance.membershipType = 1',
-      )
-      .leftJoinAndSelect(
-        'linkedProfilesXbox.clips',
-        'linkedProfilesClips',
-        'entry.timePlayedRange && linkedProfilesClips.dateRecordedRange',
-      )
-      .leftJoinAndSelect(
-        'linkedProfiles.twitchNameMatch',
-        'linkedProfilesTwitch',
-      )
-      .leftJoinAndSelect(
-        'linkedProfilesTwitch.videos',
-        'linkedProfilesVideos',
-        'entry.timePlayedRange && linkedProfilesVideos.durationRange',
-      )
-      .leftJoinAndSelect('linkedProfiles.mixerNameMatch', 'linkedProfilesMixer')
-      .leftJoinAndSelect('linkedProfilesMixer.channel', 'linkedProfilesChannel')
-      .leftJoinAndSelect(
-        'linkedProfilesChannel.recordings',
-        'linkedProfileRecordings',
-        'entry.timePlayedRange && linkedProfileRecordings.durationRange',
       )
       .where(
         'entry.profile = ANY (:membershipIds)',
@@ -140,7 +148,9 @@ export class AppService {
             const xboxClip = entryProfile.xboxNameMatch.clips[k];
             const video = {
               type: 'xbox',
-              url: `https://xboxrecord.us/gamer/${gamertag}/clip/${xboxClip.gameClipId}/scid/${xboxClip.gameClipId}`,
+              url: `https://xboxrecord.us/gamer/${encodeURIComponent(
+                gamertag,
+              )}/clip/${xboxClip.gameClipId}/scid/${xboxClip.gameClipId}`,
             };
             encounteredVideos.push(video);
           }
@@ -185,7 +195,7 @@ export class AppService {
             const mixerOffset = convertSecondsToTwitchDuration(offset);
             const video = {
               type: 'mixer',
-              url: `https://mixer.com/${mixerRecording.channel.token}?vod=${mixerRecording.id}$t=${mixerOffset}`,
+              url: `https://mixer.com/${entryProfile.mixerNameMatch?.channel?.token}?vod=${mixerRecording.id}$t=${mixerOffset}`,
             };
             encounteredVideos.push(video);
           }
@@ -215,77 +225,6 @@ export class AppService {
             encounteredVideos.push(video);
           }
         }
-        if (entryProfile.bnetProfile?.profiles?.length) {
-          for (let k = 0; k < entryProfile.bnetProfile.profiles.length; k++) {
-            const linkedProfile = entryProfile.bnetProfile.profiles[k];
-            if (linkedProfile.xboxNameMatch) {
-              const gamertag = linkedProfile.xboxNameMatch.gamertag;
-              for (
-                let l = 0;
-                l < linkedProfile.xboxNameMatch.clips.length;
-                l++
-              ) {
-                const xboxClip = linkedProfile.xboxNameMatch.clips[l];
-                const video = {
-                  type: 'xbox',
-                  url: `https://xboxrecord.us/gamer/${gamertag}/clip/${xboxClip.gameClipId}/scid/${xboxClip.gameClipId}`,
-                };
-                encounteredVideos.push(video);
-              }
-            }
-            if (linkedProfile.twitchNameMatch) {
-              for (
-                let l = 0;
-                l < linkedProfile.twitchNameMatch.videos.length;
-                l++
-              ) {
-                const twitchVideo = linkedProfile.twitchNameMatch.videos[l];
-                const videoStartTime = new Date(
-                  JSON.parse(twitchVideo.durationRange)[0],
-                );
-                let offset = 0;
-                if (entryStartTime > videoStartTime) {
-                  offset = Math.floor(
-                    (entryStartTime.getTime() - videoStartTime.getTime()) /
-                      1000,
-                  );
-                }
-                const twitchOffset = convertSecondsToTwitchDuration(offset);
-                const video = {
-                  type: 'twitch',
-                  url: `${twitchVideo.url}?t=${twitchOffset}`,
-                };
-                encounteredVideos.push(video);
-              }
-            }
-            if (linkedProfile.mixerNameMatch) {
-              for (
-                let l = 0;
-                l < linkedProfile.mixerNameMatch.channel.recordings.length;
-                l++
-              ) {
-                const mixerRecording =
-                  linkedProfile.mixerNameMatch.channel.recordings[l];
-                const videoStartTime = new Date(
-                  JSON.parse(mixerRecording.durationRange)[0],
-                );
-                let offset = 0;
-                if (entryStartTime > videoStartTime) {
-                  offset = Math.floor(
-                    (entryStartTime.getTime() - videoStartTime.getTime()) /
-                      1000,
-                  );
-                }
-                const mixerOffset = convertSecondsToTwitchDuration(offset);
-                const video = {
-                  type: 'mixer',
-                  url: `https://mixer.com/${mixerRecording.channel.token}?vod=${mixerRecording.id}$t=${mixerOffset}`,
-                };
-                encounteredVideos.push(video);
-              }
-            }
-          }
-        }
         instanceEntry.videos = Array.from(
           new Set(encounteredVideos.map(video => video.url)),
         );
@@ -298,7 +237,10 @@ export class AppService {
       }
     }
 
-    return instances;
+    return {
+      profile,
+      instances,
+    };
   }
 
   async getInfoAboutMembershipId(membershipId: string) {

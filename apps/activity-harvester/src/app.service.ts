@@ -79,7 +79,7 @@ export class AppService {
     ).toISOString();
 
     const staleCheck = new Date(
-      new Date().setHours(new Date().getHours() - 1),
+      new Date().setMinutes(new Date().getMinutes() - 5),
     ).toISOString();
 
     const usersToCheck = await getConnection()

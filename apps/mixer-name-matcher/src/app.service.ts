@@ -29,10 +29,7 @@ export class AppService {
       .getMany();
 
     const allSearches = [];
-    const results: {
-      profile: DestinyProfileEntity;
-      result: UserWithChannel;
-    }[] = [];
+    const results: UserWithChannel[] = [];
 
     const profileEntities: DestinyProfileEntity[] = [];
     const mixerAccountEntities: MixerAccountEntity[] = [];
@@ -42,12 +39,8 @@ export class AppService {
       this.mixerService
         .searchUser(profile.displayName.replace(/\s/g, '_'))
         .then(async res => {
-          profile.mixerNameMatchChecked = new Date().toISOString();
-          if (profile.membershipId) {
-            profileEntities.push(profile);
-          }
           if (res && res.data && res.data[0]) {
-            results.push({ profile, result: res.data[0] });
+            results.push(res.data[0]);
           }
         })
         .catch(() =>
@@ -63,6 +56,8 @@ export class AppService {
       profile.displayName = loadedProfile.displayName;
       profile.membershipId = loadedProfile.membershipId;
       profile.membershipType = loadedProfile.membershipType;
+      profile.mixerNameMatchChecked = new Date().toISOString();
+      profileEntities.push(profile);
 
       const search = profileSearch(profile);
       allSearches.push(search);
@@ -75,26 +70,33 @@ export class AppService {
       ),
     );
 
-    for (let i = 0; i < results.length; i++) {
-      const profile = results[i].profile;
-      const result = results[i].result;
-      if (result?.username === profile.displayName) {
-        const mixerNameMatch = new MixerAccountEntity();
-        mixerNameMatch.username = result.username;
-        mixerNameMatch.id = result.id;
+    const profilesToSave: DestinyProfileEntity[] = [];
 
-        const channel = new MixerChannelEntity();
-        channel.id = result.channel?.id;
-        channel.token = result.channel?.token;
+    for (let i = 0; i < profileEntities.length; i++) {
+      const profile = profileEntities[i];
+      for (let j = 0; j < results.length; j++) {
+        const result = results[j];
+        if (result?.username === profile.displayName.replace(/\s/g, '_')) {
+          const mixerNameMatch = new MixerAccountEntity();
+          mixerNameMatch.username = result.username;
+          mixerNameMatch.id = result.id;
 
-        mixerNameMatch.channel = channel;
-        profile.mixerNameMatch = mixerNameMatch;
+          const channel = new MixerChannelEntity();
+          channel.id = result.channel?.id;
+          channel.token = result.channel?.token;
 
-        if (mixerNameMatch.id) {
-          mixerAccountEntities.push(mixerNameMatch);
-        }
-        if (channel.id) {
-          mixerChannelEntities.push(channel);
+          mixerNameMatch.channel = channel;
+          profile.mixerNameMatch = mixerNameMatch;
+
+          profilesToSave.push(profile);
+
+          if (mixerNameMatch.id) {
+            mixerAccountEntities.push(mixerNameMatch);
+          }
+          if (channel.id) {
+            mixerChannelEntities.push(channel);
+          }
+          break;
         }
       }
     }
@@ -108,7 +110,7 @@ export class AppService {
       'id',
     );
     const uniqueDestinyProfileEntities: DestinyProfileEntity[] = uniqueEntityArray(
-      profileEntities,
+      profilesToSave,
       'membershipId',
     );
 
