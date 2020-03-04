@@ -6,6 +6,5 @@ async function bootstrap() {
   const app = await NestFactory.createApplicationContext(AppModule);
   // eslint-disable-next-line @typescript-eslint/no-unused-vars
   const appService = app.get(AppService);
-  // await appService.primeAccounts();
 }
 bootstrap();
