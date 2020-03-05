@@ -8,6 +8,7 @@ import { MixerChannelEntity } from '@services/shared-services/mixer/mixer-channe
 import upsert from '@services/shared-services/helpers/typeorm-upsert';
 import { UserWithChannel } from '@services/shared-services/mixer/mixer.types';
 import uniqueEntityArray from '@services/shared-services/helpers/unique-entity-array';
+import { AccountLinkEntity } from '@services/shared-services/helpers/account-link.entity';
 
 @Injectable()
 export class AppService {
@@ -34,6 +35,7 @@ export class AppService {
     const profileEntities: DestinyProfileEntity[] = [];
     const mixerAccountEntities: MixerAccountEntity[] = [];
     const mixerChannelEntities: MixerChannelEntity[] = [];
+    const accountLinkEntities: AccountLinkEntity[] = [];
 
     const profileSearch = async (profile: DestinyProfileEntity) =>
       this.mixerService
@@ -74,28 +76,29 @@ export class AppService {
 
     for (let i = 0; i < profileEntities.length; i++) {
       const profile = profileEntities[i];
+      profilesToSave.push(profile);
       for (let j = 0; j < results.length; j++) {
         const result = results[j];
         if (result?.username === profile.displayName.replace(/\s/g, '_')) {
-          const mixerNameMatch = new MixerAccountEntity();
-          mixerNameMatch.username = result.username;
-          mixerNameMatch.id = result.id;
+          const mixerAccountEntity = new MixerAccountEntity();
+          mixerAccountEntity.username = result.username;
+          mixerAccountEntity.id = result.id;
 
           const channel = new MixerChannelEntity();
           channel.id = result.channel?.id;
           channel.token = result.channel?.token;
 
-          mixerNameMatch.channel = channel;
-          profile.mixerNameMatch = mixerNameMatch;
+          mixerAccountEntity.channel = channel;
 
-          profilesToSave.push(profile);
+          const accountLinkEntity = new AccountLinkEntity();
+          accountLinkEntity.accountType = 'mixer';
+          accountLinkEntity.linkType = 'nameMatch';
+          accountLinkEntity.destinyProfile = profile;
+          accountLinkEntity.mixerAccount = mixerAccountEntity;
 
-          if (mixerNameMatch.id) {
-            mixerAccountEntities.push(mixerNameMatch);
-          }
-          if (channel.id) {
-            mixerChannelEntities.push(channel);
-          }
+          mixerAccountEntities.push(mixerAccountEntity);
+          mixerChannelEntities.push(channel);
+          accountLinkEntities.push(accountLinkEntity);
           break;
         }
       }
@@ -161,6 +164,22 @@ export class AppService {
         .catch(() =>
           this.logger.error(
             `Error saving ${uniqueDestinyProfileEntities.length} Destiny Profile Entities`,
+            'MixerNameMatch',
+          ),
+        );
+    }
+
+    if (accountLinkEntities.length) {
+      await upsert(AccountLinkEntity, accountLinkEntities, 'id')
+        .then(() =>
+          this.logger.log(
+            `Saved ${accountLinkEntities.length} Account Link Entities`,
+            'MixerNameMatch',
+          ),
+        )
+        .catch(() =>
+          this.logger.error(
+            `Error saving ${accountLinkEntities.length} Account Link Entities`,
             'MixerNameMatch',
           ),
         );

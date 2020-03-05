@@ -33,10 +33,10 @@ export class AppService {
 
     const profilesToCheck = await getConnection()
       .createQueryBuilder(DestinyProfileEntity, 'profile')
-      .leftJoinAndSelect('profile.xboxNameMatch', 'xboxAccount')
+      .leftJoinAndSelect('profile.xboxAccount', 'xboxAccount')
       .orderBy('xboxAccount.lastClipCheck')
       .where(
-        'profile.membershipType = 1 AND (profile.xboxNameMatch is null OR xboxAccount.lastClipCheck < :staleCheck OR xboxAccount.lastClipCheck is null)',
+        'profile.membershipType = 1 AND (profile.xboxAccount is null OR xboxAccount.lastClipCheck < :staleCheck OR xboxAccount.lastClipCheck is null)',
         {
           staleCheck,
         },
@@ -63,17 +63,17 @@ export class AppService {
       profile.membershipType = loadedProfile.membershipType;
       profile.displayName = loadedProfile.displayName;
 
-      const xboxNameMatch = new XboxAccountEntity();
-      xboxNameMatch.gamertag = profile.displayName;
-      xboxNameMatch.lastClipCheck = new Date().toISOString();
+      const xboxAccount = new XboxAccountEntity();
+      xboxAccount.gamertag = profile.displayName;
+      xboxAccount.lastClipCheck = new Date().toISOString();
 
-      profile.xboxNameMatch = xboxNameMatch;
+      profile.xboxAccount = xboxAccount;
 
       destinyProfileEntities.push(profile);
-      xboxAccountEntities.push(xboxNameMatch);
+      xboxAccountEntities.push(xboxAccount);
 
       const clipFetcher = this.xboxService
-        .fetchConsoleDestiny2ClipsForGamertag(xboxNameMatch.gamertag)
+        .fetchConsoleDestiny2ClipsForGamertag(xboxAccount.gamertag)
         .then(res => {
           const toSave: XboxClipEntity[] = [];
           if (res?.data?.gameClips) {
@@ -87,7 +87,7 @@ export class AppService {
               xboxClipEntity.gameClipId = clip.gameClipId;
               xboxClipEntity.scid = clip.scid;
               xboxClipEntity.xuid = clip.xuid;
-              xboxClipEntity.xboxAccount = xboxNameMatch;
+              xboxClipEntity.xboxAccount = xboxAccount;
               xboxClipEntity.thumbnailUri = clip.thumbnails.pop().uri;
               xboxClipEntity.dateRecordedRange = `[${
                 clip.dateRecorded
@@ -100,17 +100,17 @@ export class AppService {
           return toSave;
         })
         .then(async toSave => {
-          if (profile?.xboxNameMatch?.gamertag) {
+          if (profile?.xboxAccount?.gamertag) {
             const existingClips = await getConnection()
               .createQueryBuilder(XboxClipEntity, 'clip')
               .where('clip.xboxAccount = :gamertag', {
-                gamertag: profile.xboxNameMatch.gamertag,
+                gamertag: profile.xboxAccount.gamertag,
               })
               .getMany();
             if (existingClips.length) {
               const newClipIds = new Set(toSave.map(clip => clip.gameClipId));
-              for (let j = 0; j < profile.xboxNameMatch.clips.length; j++) {
-                const existingClip = profile.xboxNameMatch.clips[j];
+              for (let j = 0; j < profile.xboxAccount.clips.length; j++) {
+                const existingClip = profile.xboxAccount.clips[j];
                 if (newClipIds.has(existingClip.gameClipId)) {
                   continue;
                 }
@@ -121,7 +121,7 @@ export class AppService {
         })
         .catch(() =>
           this.logger.error(
-            `Error fetching Xbox Clips for ${profile.xboxNameMatch.gamertag}`,
+            `Error fetching Xbox Clips for ${profile.xboxAccount.gamertag}`,
             'XboxClipFetcher',
           ),
         );

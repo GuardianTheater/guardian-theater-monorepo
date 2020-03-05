@@ -7,6 +7,7 @@ import { TwitchAccountEntity } from '@services/shared-services/twitch/twitch-acc
 import upsert from '@services/shared-services/helpers/typeorm-upsert';
 import { Interval } from '@nestjs/schedule';
 import uniqueEntityArray from '@services/shared-services/helpers/unique-entity-array';
+import { AccountLinkEntity } from '@services/shared-services/helpers/account-link.entity';
 
 @Injectable()
 export class AppService {
@@ -66,6 +67,7 @@ export class AppService {
     );
 
     const twitchAccountEntities: TwitchAccountEntity[] = [];
+    const accountLinkEntities: AccountLinkEntity[] = [];
     const destinyProfileEntities: DestinyProfileEntity[] = [];
 
     for (let i = 0; i < loadedProfiles.length; i++) {
@@ -76,6 +78,7 @@ export class AppService {
       profile.displayName = loadedProfile.displayName;
 
       profile.twitchNameMatchChecked = new Date().toISOString();
+      destinyProfileEntities.push(profile);
 
       const noSpaceLowercaseName = profile.displayName
         .replace(/\s/g, '')
@@ -85,19 +88,22 @@ export class AppService {
         const result = results[j];
 
         if (noSpaceLowercaseName === result.login) {
-          const twitchNameMatch = new TwitchAccountEntity();
-          twitchNameMatch.id = result.id;
-          twitchNameMatch.login = result.login;
-          twitchNameMatch.displayName = result.display_name;
+          const twitchAccountEntity = new TwitchAccountEntity();
+          twitchAccountEntity.id = result.id;
+          twitchAccountEntity.login = result.login;
+          twitchAccountEntity.displayName = result.display_name;
 
-          profile.twitchNameMatch = twitchNameMatch;
+          const accountLinkEntity = new AccountLinkEntity();
+          accountLinkEntity.accountType = 'twitch';
+          accountLinkEntity.linkType = 'nameMatch';
+          accountLinkEntity.destinyProfile = profile;
+          accountLinkEntity.twitchAccount = twitchAccountEntity;
 
-          twitchAccountEntities.push(twitchNameMatch);
+          twitchAccountEntities.push(twitchAccountEntity);
+          accountLinkEntities.push(accountLinkEntity);
           break;
         }
       }
-
-      destinyProfileEntities.push(profile);
     }
 
     const uniqueTwitchAccountEntities = uniqueEntityArray(
@@ -140,6 +146,22 @@ export class AppService {
         .catch(() =>
           this.logger.error(
             `Error saving ${uniqueDestinyProfileEntities.length} Destiny Profile Entities`,
+            'TwitchNameMatch',
+          ),
+        );
+    }
+
+    if (accountLinkEntities.length) {
+      await upsert(AccountLinkEntity, accountLinkEntities, 'id')
+        .then(() =>
+          this.logger.log(
+            `Saved ${accountLinkEntities.length} Account Link Entities`,
+            'TwitchNameMatch',
+          ),
+        )
+        .catch(() =>
+          this.logger.error(
+            `Error saving ${accountLinkEntities.length} Account Link Entities`,
             'TwitchNameMatch',
           ),
         );

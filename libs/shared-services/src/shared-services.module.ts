@@ -16,6 +16,8 @@ import { TwitchVideoEntity } from './twitch/twitch-video.entity';
 import { MixerAccountEntity } from './mixer/mixer-account.entity';
 import { MixerChannelEntity } from './mixer/mixer-channel.entity';
 import { MixerRecordingEntity } from './mixer/mixer-recording.entity';
+import { AccountLinkEntity } from './helpers/account-link.entity';
+import { AccountLinkVoteEntity } from './helpers/account-link-vote.entity';
 
 @Module({
   imports: [
@@ -40,6 +42,8 @@ import { MixerRecordingEntity } from './mixer/mixer-recording.entity';
         MixerAccountEntity,
         MixerChannelEntity,
         MixerRecordingEntity,
+        AccountLinkEntity,
+        AccountLinkVoteEntity,
       ],
       synchronize: true,
       ssl: {
@@ -59,6 +63,8 @@ import { MixerRecordingEntity } from './mixer/mixer-recording.entity';
       MixerAccountEntity,
       MixerChannelEntity,
       MixerRecordingEntity,
+      AccountLinkEntity,
+      AccountLinkVoteEntity,
     ]),
   ],
   providers: [BungieService, MixerService, TwitchService, XboxService],

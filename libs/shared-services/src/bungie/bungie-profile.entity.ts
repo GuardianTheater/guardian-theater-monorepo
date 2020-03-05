@@ -1,14 +1,7 @@
-import {
-  Entity,
-  PrimaryColumn,
-  Column,
-  OneToMany,
-  ManyToOne,
-  JoinColumn,
-} from 'typeorm';
+import { Entity, PrimaryColumn, Column, OneToMany } from 'typeorm';
 import { DestinyProfileEntity } from './destiny-profile.entity';
 import { BungieMembershipType } from 'bungie-api-ts/user';
-import { TwitchAccountEntity } from '../twitch/twitch-account.entity';
+import { AccountLinkVoteEntity } from '../helpers/account-link-vote.entity';
 
 @Entity()
 export class BungieProfileEntity {
@@ -18,11 +11,11 @@ export class BungieProfileEntity {
   @Column()
   membershipType: BungieMembershipType;
 
-  @ManyToOne(() => TwitchAccountEntity, {
-    nullable: true,
-  })
-  @JoinColumn({ name: 'twitchPartnershipMatch' })
-  twitchPartnershipMatch?: TwitchAccountEntity;
+  @OneToMany(
+    () => DestinyProfileEntity,
+    profile => profile.bnetProfile,
+  )
+  profiles?: DestinyProfileEntity[];
 
   @Column({
     type: 'timestamptz',
@@ -31,8 +24,8 @@ export class BungieProfileEntity {
   twitchPartnershipMatchChecked?: string;
 
   @OneToMany(
-    () => DestinyProfileEntity,
-    profile => profile.bnetProfile,
+    () => AccountLinkVoteEntity,
+    vote => vote.bnetProfile,
   )
-  profiles?: DestinyProfileEntity[];
+  votes?: AccountLinkVoteEntity[];
 }

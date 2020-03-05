@@ -7,6 +7,8 @@ import { getPartnerships, PartnershipType } from 'bungie-api-ts/user';
 import { TwitchAccountEntity } from '@services/shared-services/twitch/twitch-account.entity';
 import upsert from '@services/shared-services/helpers/typeorm-upsert';
 import uniqueEntityArray from '@services/shared-services/helpers/unique-entity-array';
+import { DestinyProfileEntity } from '@services/shared-services/bungie/destiny-profile.entity';
+import { AccountLinkEntity } from '@services/shared-services/helpers/account-link.entity';
 
 @Injectable()
 export class AppService {
@@ -31,26 +33,26 @@ export class AppService {
 
     const requests = [];
     const namesToCheck = [];
-    const profiles: BungieProfileEntity[] = [];
+
+    const bnetProfileEntities: BungieProfileEntity[] = [];
+
     const profileWithPartnershipName: {
-      profile: BungieProfileEntity;
+      profiles: DestinyProfileEntity[];
       name: string;
     }[] = [];
 
     for (let i = 0; i < profilesToCheck.length; i++) {
       const loadedProfile = profilesToCheck[i];
-      const profile = new BungieProfileEntity();
-      profile.membershipId = loadedProfile.membershipId;
-      profile.membershipType = loadedProfile.membershipType;
-      profile.profiles = loadedProfile.profiles;
-
-      profile.twitchPartnershipMatchChecked = new Date().toISOString();
-      profiles.push(profile);
+      const bnetProfile = new BungieProfileEntity();
+      bnetProfile.membershipId = loadedProfile.membershipId;
+      bnetProfile.membershipType = loadedProfile.membershipType;
+      bnetProfile.twitchPartnershipMatchChecked = new Date().toISOString();
+      bnetProfileEntities.push(bnetProfile);
 
       const request = getPartnerships(
         config => this.bungieService.bungieRequest(config),
         {
-          membershipId: profile.membershipId,
+          membershipId: bnetProfile.membershipId,
         },
       )
         .then(partnerships => {
@@ -59,14 +61,14 @@ export class AppService {
           ) {
             namesToCheck.push(partnerships.Response[0].name);
             profileWithPartnershipName.push({
-              profile,
+              profiles: loadedProfile.profiles,
               name: partnerships.Response[0].name,
             });
           }
         })
         .catch(() => {
           this.logger.error(
-            `Error fetching partnerships for ${profile.membershipId}`,
+            `Error fetching partnerships for ${bnetProfile.membershipId}`,
             'BungiePartnershipTwitchMatcher',
           );
         });
@@ -108,30 +110,36 @@ export class AppService {
     }
 
     const twitchAccountEntities: TwitchAccountEntity[] = [];
+    const accountLinkEntities: AccountLinkEntity[] = [];
+
     for (let i = 0; i < profileWithPartnershipName.length; i++) {
-      const profile = profileWithPartnershipName[i].profile;
+      const profiles = profileWithPartnershipName[i].profiles;
       const name = profileWithPartnershipName[i].name;
 
       for (let j = 0; j < results.length; j++) {
         const result = results[j];
 
         if (name === result.login) {
-          const twitchPartnershipMatch = new TwitchAccountEntity();
-          twitchPartnershipMatch.id = result.id;
-          twitchPartnershipMatch.login = result.login;
-          twitchPartnershipMatch.displayName = result.display_name;
+          const twitchAccount = new TwitchAccountEntity();
+          twitchAccount.id = result.id;
+          twitchAccount.login = result.login;
+          twitchAccount.displayName = result.display_name;
 
-          profile.twitchPartnershipMatch = twitchPartnershipMatch;
-          twitchAccountEntities.push(twitchPartnershipMatch);
+          for (let k = 0; k < profiles.length; k++) {
+            const destinyProfile = profiles[k];
+            const accountLink = new AccountLinkEntity();
+            accountLink.accountType = 'twitch';
+            accountLink.linkType = 'bungiePartner';
+            accountLink.twitchAccount = twitchAccount;
+            accountLink.destinyProfile = destinyProfile;
+
+            accountLinkEntities.push(accountLink);
+          }
+
+          twitchAccountEntities.push(twitchAccount);
           break;
         }
       }
-      profiles.unshift(profile);
-    }
-
-    for (let i = 0; i < profiles.length; i++) {
-      const profile = profiles[i];
-      delete profile.profiles;
     }
 
     const uniqueTwitchAccountEntities = uniqueEntityArray(
@@ -139,7 +147,7 @@ export class AppService {
       'id',
     );
     const uniqueBungieProfileEntities = uniqueEntityArray(
-      profiles,
+      bnetProfileEntities,
       'membershipId',
     );
 
@@ -174,6 +182,22 @@ export class AppService {
         .catch(() =>
           this.logger.error(
             `Error saving ${uniqueBungieProfileEntities.length} Bungie Profile Entities`,
+            'BungiePartnershipTwitchMatcher',
+          ),
+        );
+    }
+
+    if (accountLinkEntities.length) {
+      await upsert(AccountLinkEntity, accountLinkEntities, 'id')
+        .then(() =>
+          this.logger.log(
+            `Saved ${accountLinkEntities.length} Account Link Entities`,
+            'BungiePartnershipTwitchMatcher',
+          ),
+        )
+        .catch(() =>
+          this.logger.error(
+            `Error saving ${accountLinkEntities.length} Account Link Entities`,
             'BungiePartnershipTwitchMatcher',
           ),
         );

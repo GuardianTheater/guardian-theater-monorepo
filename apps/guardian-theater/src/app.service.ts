@@ -69,52 +69,68 @@ export class AppService {
       .createQueryBuilder(PgcrEntryEntity, 'entry')
       .leftJoinAndSelect('entry.instance', 'instance')
       .leftJoinAndSelect('instance.entries', 'entries')
-      .leftJoinAndSelect('entries.profile', 'profiles')
+      .leftJoinAndSelect('entries.profile', 'destinyProfile')
+      .leftJoinAndSelect('destinyProfile.accountLinks', 'accountLinks')
+      .leftJoinAndSelect('accountLinks.twitchAccount', 'twitchAccount')
       .leftJoinAndSelect(
-        'profiles.xboxNameMatch',
-        'profilesXbox',
-        'instance.membershipType = 1',
+        'twitchAccount.videos',
+        'videos',
+        'entry.timePlayedRange && videos.durationRange',
+      )
+      .leftJoinAndSelect('accountLinks.mixerAccount', 'mixerAccount')
+      .leftJoinAndSelect('mixerAccount.channel', 'channel')
+      .leftJoinAndSelect(
+        'channel.recordings',
+        'recordings',
+        'entry.timePlayedRange && recordings.durationRange',
+      )
+      .leftJoinAndSelect('destinyProfile.xboxAccount', 'xboxAccount')
+      .leftJoinAndSelect(
+        'xboxAccount.clips',
+        'clips',
+        'entry.timePlayedRange && clips.dateRecordedRange',
+      )
+      .leftJoinAndSelect('destinyProfile.bnetProfile', 'bnetProfile')
+      .leftJoinAndSelect(
+        'bnetProfile.profiles',
+        'linkedDestinyProfile',
+        'linkedDestinyProfile.membershipId != destinyProfile.membershipId',
       )
       .leftJoinAndSelect(
-        'profilesXbox.clips',
-        'profilesClips',
-        'entry.timePlayedRange && profilesClips.dateRecordedRange',
+        'linkedDestinyProfile.xboxAccount',
+        'linkedXboxAccount',
       )
-      .leftJoinAndSelect('profiles.twitchNameMatch', 'profilesTwitch')
       .leftJoinAndSelect(
-        'profilesTwitch.videos',
-        'profilesVideos',
-        'entry.timePlayedRange && profilesVideos.durationRange',
+        'linkedXboxAccount.clips',
+        'linkedClips',
+        'entry.timePlayedRange && linkedClips.dateRecordedRange',
       )
-      .leftJoinAndSelect('profiles.mixerNameMatch', 'profilesMixer')
-      .leftJoinAndSelect('profilesMixer.channel', 'profilesChannel')
       .leftJoinAndSelect(
-        'profilesChannel.recordings',
-        'profileRecordings',
-        'entry.timePlayedRange && profileRecordings.durationRange',
+        'linkedDestinyProfile.accountLinks',
+        'linkedAccountLinks',
       )
-      .leftJoinAndSelect('profiles.bnetProfile', 'bnetProfile')
-      .leftJoinAndSelect('bnetProfile.twitchPartnershipMatch', 'bnetTwitch')
       .leftJoinAndSelect(
-        'bnetTwitch.videos',
-        'bnetVideos',
-        'entry.timePlayedRange && bnetVideos.durationRange',
+        'linkedAccountLinks.twitchAccount',
+        'linkedTwitchAccount',
       )
-      .where(
-        'entry.profile = ANY (:membershipIds)',
-        //  +' AND (' +
-        // 'entry.timePlayedRange && profilesClips.dateRecordedRange OR ' +
-        // 'entry.timePlayedRange && profilesVideos.durationRange OR ' +
-        // 'entry.timePlayedRange && bnetVideos.durationRange OR ' +
-        // 'entry.timePlayedRange && profileRecordings.durationRange OR ' +
-        // 'entry.timePlayedRange && linkedProfilesClips.dateRecordedRange OR ' +
-        // 'entry.timePlayedRange && linkedProfilesVideos.durationRange OR ' +
-        // 'entry.timePlayedRange && linkedProfileRecordings.durationRange' +
-        // ')',
-        {
-          membershipIds,
-        },
+      .leftJoinAndSelect(
+        'linkedTwitchAccount.videos',
+        'linkedVideos',
+        'entry.timePlayedRange && linkedVideos.durationRange',
       )
+      .leftJoinAndSelect(
+        'linkedAccountLinks.mixerAccount',
+        'linkedMixerAccount',
+      )
+      .leftJoinAndSelect('linkedMixerAccount.channel', 'linkedChannel')
+      .leftJoinAndSelect(
+        'linkedChannel.recordings',
+        'linkedRecordings',
+        'entry.timePlayedRange && linkedRecordings.durationRange',
+      )
+      .where('entry.profile = ANY (:membershipIds)', {
+        membershipIds,
+      })
       .getMany();
 
     const instances = [];
@@ -142,10 +158,10 @@ export class AppService {
         const entryStartTime = new Date(
           JSON.parse(instanceEntryResponse.timePlayedRange)[0],
         );
-        if (entryProfile.xboxNameMatch) {
-          const gamertag = entryProfile.xboxNameMatch.gamertag;
-          for (let k = 0; k < entryProfile.xboxNameMatch.clips.length; k++) {
-            const xboxClip = entryProfile.xboxNameMatch.clips[k];
+        if (entryProfile.xboxAccount) {
+          const gamertag = entryProfile.xboxAccount.gamertag;
+          for (let k = 0; k < entryProfile.xboxAccount.clips.length; k++) {
+            const xboxClip = entryProfile.xboxAccount.clips[k];
             const video = {
               type: 'xbox',
               url: `https://xboxrecord.us/gamer/${encodeURIComponent(
@@ -155,76 +171,92 @@ export class AppService {
             encounteredVideos.push(video);
           }
         }
-        if (entryProfile.twitchNameMatch) {
-          for (let k = 0; k < entryProfile.twitchNameMatch.videos.length; k++) {
-            const twitchVideo = entryProfile.twitchNameMatch.videos[k];
-            const videoStartTime = new Date(
-              JSON.parse(twitchVideo.durationRange)[0],
-            );
-            let offset = 0;
-            if (entryStartTime > videoStartTime) {
-              offset = Math.floor(
-                (entryStartTime.getTime() - videoStartTime.getTime()) / 1000,
-              );
+        const accountLinks = [];
+        for (let k = 0; k < entryProfile.accountLinks.length; k++) {
+          accountLinks.push(entryProfile.accountLinks[k]);
+
+          if (entryProfile.bnetProfile?.profiles?.length) {
+            for (let l = 0; l < entryProfile.bnetProfile.profiles.length; l++) {
+              const childProfile = entryProfile.bnetProfile.profiles[l];
+              for (let m = 0; m < childProfile.accountLinks?.length; m++) {
+                accountLinks.push(childProfile.accountLinks[m]);
+              }
+
+              if (childProfile.xboxAccount) {
+                const gamertag = childProfile.xboxAccount.gamertag;
+                for (
+                  let n = 0;
+                  n < childProfile.xboxAccount.clips.length;
+                  n++
+                ) {
+                  const xboxClip = childProfile.xboxAccount.clips[n];
+                  const video = {
+                    type: 'xbox',
+                    url: `https://xboxrecord.us/gamer/${encodeURIComponent(
+                      gamertag,
+                    )}/clip/${xboxClip.gameClipId}/scid/${xboxClip.gameClipId}`,
+                  };
+                  encounteredVideos.push(video);
+                }
+              }
             }
-            const twitchOffset = convertSecondsToTwitchDuration(offset);
-            const video = {
-              type: 'twitch',
-              url: `${twitchVideo.url}?t=${twitchOffset}`,
-            };
-            encounteredVideos.push(video);
           }
         }
-        if (entryProfile.mixerNameMatch) {
-          for (
-            let k = 0;
-            k < entryProfile.mixerNameMatch.channel.recordings.length;
-            k++
-          ) {
-            const mixerRecording =
-              entryProfile.mixerNameMatch.channel.recordings[k];
-            const videoStartTime = new Date(
-              JSON.parse(mixerRecording.durationRange)[0],
-            );
-            let offset = 0;
-            if (entryStartTime > videoStartTime) {
-              offset = Math.floor(
-                (entryStartTime.getTime() - videoStartTime.getTime()) / 1000,
+        for (let k = 0; k < accountLinks.length; k++) {
+          const accountLink = accountLinks[k];
+          if (accountLink.twitchAccount) {
+            for (let l = 0; l < accountLink.twitchAccount.videos.length; l++) {
+              const twitchVideo = accountLink.twitchAccount.videos[l];
+              const videoStartTime = new Date(
+                JSON.parse(twitchVideo.durationRange)[0],
               );
+              let offset = 0;
+              if (entryStartTime > videoStartTime) {
+                offset = Math.floor(
+                  (entryStartTime.getTime() - videoStartTime.getTime()) / 1000,
+                );
+              }
+              const twitchOffset = convertSecondsToTwitchDuration(offset);
+              const video = {
+                type: 'twitch',
+                url: `${twitchVideo.url}`,
+              };
+              if (twitchOffset) {
+                video.url += `?t=${twitchOffset}`;
+              }
+              encounteredVideos.push(video);
             }
-            const mixerOffset = convertSecondsToTwitchDuration(offset);
-            const video = {
-              type: 'mixer',
-              url: `https://mixer.com/${entryProfile.mixerNameMatch?.channel?.token}?vod=${mixerRecording.id}&t=${mixerOffset}`,
-            };
-            encounteredVideos.push(video);
+          }
+          if (accountLink.mixerAccount) {
+            for (
+              let l = 0;
+              l < accountLink.mixerAccount.channel.recordings.length;
+              l++
+            ) {
+              const mixerRecording =
+                accountLink.mixerAccount.channel.recordings[l];
+              const videoStartTime = new Date(
+                JSON.parse(mixerRecording.durationRange)[0],
+              );
+              let offset = 0;
+              if (entryStartTime > videoStartTime) {
+                offset = Math.floor(
+                  (entryStartTime.getTime() - videoStartTime.getTime()) / 1000,
+                );
+              }
+              const mixerOffset = convertSecondsToTwitchDuration(offset);
+              const video = {
+                type: 'mixer',
+                url: `https://mixer.com/${accountLink.mixerAccount?.channel?.token}?vod=${mixerRecording.id}`,
+              };
+              if (mixerOffset) {
+                video.url += `&t=${mixerOffset}`;
+              }
+              encounteredVideos.push(video);
+            }
           }
         }
-        if (entryProfile.bnetProfile?.twitchPartnershipMatch) {
-          for (
-            let k = 0;
-            k < entryProfile.bnetProfile.twitchPartnershipMatch.videos.length;
-            k++
-          ) {
-            const twitchVideo =
-              entryProfile.bnetProfile.twitchPartnershipMatch.videos[k];
-            const videoStartTime = new Date(
-              JSON.parse(twitchVideo.durationRange)[0],
-            );
-            let offset = 0;
-            if (entryStartTime > videoStartTime) {
-              offset = Math.floor(
-                (entryStartTime.getTime() - videoStartTime.getTime()) / 1000,
-              );
-            }
-            const twitchOffset = convertSecondsToTwitchDuration(offset);
-            const video = {
-              type: 'twitch',
-              url: `${twitchVideo.url}?t=${twitchOffset}`,
-            };
-            encounteredVideos.push(video);
-          }
-        }
+
         instanceEntry.videos = Array.from(
           new Set(encounteredVideos.map(video => video.url)),
         );
@@ -243,40 +275,40 @@ export class AppService {
     };
   }
 
-  async getInfoAboutMembershipId(membershipId: string) {
-    return getConnection()
+  async getInfoAboutMembershipId(destinyMembershipId: string) {
+    const profile = await getConnection()
       .createQueryBuilder(DestinyProfileEntity, 'profile')
       .leftJoinAndSelect('profile.bnetProfile', 'bnetProfile')
-      .leftJoinAndSelect('profile.twitchNameMatch', 'twitchNameMatch')
-      .leftJoinAndSelect('twitchNameMatch.videos', 'videos')
-      .leftJoinAndSelect('profile.mixerNameMatch', 'mixerNameMatch')
-      .leftJoinAndSelect('mixerNameMatch.channel', 'channel')
-      .leftJoinAndSelect('channel.recordings', 'recordings')
-      .leftJoinAndSelect('profile.xboxNameMatch', 'xbox')
-      .leftJoinAndSelect('xbox.clips', 'clips')
-      .leftJoinAndSelect(
-        'bnetProfile.twitchPartnershipMatch',
-        'twitchPartnershipMatch',
-      )
-      .leftJoinAndSelect('twitchPartnershipMatch.videos', 'parentVideos')
-      .leftJoinAndSelect(
-        'bnetProfile.profiles',
-        'linkedProfile',
-        'linkedProfile.membershipId != profile.membershipId',
-      )
-      .leftJoinAndSelect(
-        'linkedProfile.twitchNameMatch',
-        'childTwitchNameMatch',
-      )
-      .leftJoinAndSelect('childTwitchNameMatch.videos', 'childVideos')
-      .leftJoinAndSelect('linkedProfile.mixerNameMatch', 'childMixerNameMatch')
-      .leftJoinAndSelect('childMixerNameMatch.channel', 'childChannel')
-      .leftJoinAndSelect('childChannel.recordings', 'childRecordings')
-      .leftJoinAndSelect('linkedProfile.xboxNameMatch', 'childXbox')
-      .leftJoinAndSelect('childXbox.clips', 'childClips')
-      .where('profile.membershipId = :membershipId', {
-        membershipId,
+      .leftJoinAndSelect('bnetProfile.profiles', 'profiles')
+      .where('profile.membershipId = :destinyMembershipId', {
+        destinyMembershipId,
       })
       .getOne();
+
+    const membershipIds = [];
+
+    if (profile?.bnetProfile?.profiles.length) {
+      for (let i = 0; i < profile.bnetProfile.profiles.length; i++) {
+        membershipIds.push(profile.bnetProfile.profiles[i].membershipId);
+      }
+    } else {
+      membershipIds.push(destinyMembershipId);
+    }
+
+    return getConnection()
+      .createQueryBuilder(DestinyProfileEntity, 'destinyProfile')
+      .leftJoinAndSelect('destinyProfile.bnetProfile', 'bnetProfile')
+      .leftJoinAndSelect('destinyProfile.accountLinks', 'accountLinks')
+      .leftJoinAndSelect('accountLinks.twitchAccount', 'twitchAccount')
+      .leftJoinAndSelect('twitchAccount.videos', 'videos')
+      .leftJoinAndSelect('accountLinks.mixerAccount', 'mixerAccount')
+      .leftJoinAndSelect('mixerAccount.channel', 'channel')
+      .leftJoinAndSelect('channel.recordings', 'recordings')
+      .leftJoinAndSelect('destinyProfile.xboxAccount', 'xboxAccount')
+      .leftJoinAndSelect('xboxAccount.clips', 'clips')
+      .where('destinyProfile.membershipId = ANY (:membershipIds)', {
+        membershipIds,
+      })
+      .getMany();
   }
 }
