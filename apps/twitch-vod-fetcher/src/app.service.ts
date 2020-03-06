@@ -40,7 +40,7 @@ export class AppService {
           staleCheck,
         },
       )
-      .limit(150)
+      .limit(100)
       .getMany();
 
     // TODO: Ignore channels attached to inactive Destiny Profiles
@@ -95,7 +95,7 @@ export class AppService {
 
     if (vodPromises.length) {
       this.logger.log(
-        `Fetching Twitch Vod for ${vodPromises.length} channels.`,
+        `Fetching Twitch Vods for ${vodPromises.length} channels.`,
         'TwitchVodFetcher',
       );
       await Promise.all(vodPromises);

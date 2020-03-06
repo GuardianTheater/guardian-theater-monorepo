@@ -72,15 +72,15 @@ export class AppService {
 
     for (let i = 0; i < loadedProfiles.length; i++) {
       const loadedProfile = loadedProfiles[i];
-      const profile = new DestinyProfileEntity();
-      profile.membershipId = loadedProfile.membershipId;
-      profile.membershipType = loadedProfile.membershipType;
-      profile.displayName = loadedProfile.displayName;
+      const destinyProfileEntity = new DestinyProfileEntity();
+      destinyProfileEntity.membershipId = loadedProfile.membershipId;
+      destinyProfileEntity.membershipType = loadedProfile.membershipType;
+      destinyProfileEntity.displayName = loadedProfile.displayName;
 
-      profile.twitchNameMatchChecked = new Date().toISOString();
-      destinyProfileEntities.push(profile);
+      destinyProfileEntity.twitchNameMatchChecked = new Date().toISOString();
+      destinyProfileEntities.push(destinyProfileEntity);
 
-      const noSpaceLowercaseName = profile.displayName
+      const noSpaceLowercaseName = destinyProfileEntity.displayName
         .replace(/\s/g, '')
         .toLocaleLowerCase();
 
@@ -94,10 +94,15 @@ export class AppService {
           twitchAccountEntity.displayName = result.display_name;
 
           const accountLinkEntity = new AccountLinkEntity();
+          accountLinkEntity.destinyProfile = destinyProfileEntity;
           accountLinkEntity.accountType = 'twitch';
           accountLinkEntity.linkType = 'nameMatch';
-          accountLinkEntity.destinyProfile = profile;
           accountLinkEntity.twitchAccount = twitchAccountEntity;
+          accountLinkEntity.id =
+            accountLinkEntity.destinyProfile.membershipId +
+            accountLinkEntity.accountType +
+            accountLinkEntity.linkType +
+            accountLinkEntity.twitchAccount.id;
 
           twitchAccountEntities.push(twitchAccountEntity);
           accountLinkEntities.push(accountLinkEntity);
@@ -106,13 +111,17 @@ export class AppService {
       }
     }
 
-    const uniqueTwitchAccountEntities = uniqueEntityArray(
+    const uniqueTwitchAccountEntities: TwitchAccountEntity[] = uniqueEntityArray(
       twitchAccountEntities,
       'id',
     );
-    const uniqueDestinyProfileEntities = uniqueEntityArray(
+    const uniqueDestinyProfileEntities: DestinyProfileEntity[] = uniqueEntityArray(
       destinyProfileEntities,
       'membershipId',
+    );
+    const uniqueAccountLinkEntity: AccountLinkEntity[] = uniqueEntityArray(
+      accountLinkEntities,
+      'id',
     );
 
     if (uniqueTwitchAccountEntities.length) {
@@ -151,17 +160,17 @@ export class AppService {
         );
     }
 
-    if (accountLinkEntities.length) {
-      await upsert(AccountLinkEntity, accountLinkEntities, 'id')
+    if (uniqueAccountLinkEntity.length) {
+      await upsert(AccountLinkEntity, uniqueAccountLinkEntity, 'id')
         .then(() =>
           this.logger.log(
-            `Saved ${accountLinkEntities.length} Account Link Entities`,
+            `Saved ${uniqueAccountLinkEntity.length} Account Link Entities`,
             'TwitchNameMatch',
           ),
         )
         .catch(() =>
           this.logger.error(
-            `Error saving ${accountLinkEntities.length} Account Link Entities`,
+            `Error saving ${uniqueAccountLinkEntity.length} Account Link Entities`,
             'TwitchNameMatch',
           ),
         );

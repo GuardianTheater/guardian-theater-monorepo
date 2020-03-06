@@ -26,7 +26,7 @@ export class AppService {
     const loadedProfiles = await getConnection()
       .createQueryBuilder(DestinyProfileEntity, 'profile')
       .where('profile.mixerNameMatchChecked is null')
-      .limit(250)
+      .limit(100)
       .getMany();
 
     const allSearches = [];
@@ -75,11 +75,14 @@ export class AppService {
     const profilesToSave: DestinyProfileEntity[] = [];
 
     for (let i = 0; i < profileEntities.length; i++) {
-      const profile = profileEntities[i];
-      profilesToSave.push(profile);
+      const destinyProfileEntity = profileEntities[i];
+      profilesToSave.push(destinyProfileEntity);
       for (let j = 0; j < results.length; j++) {
         const result = results[j];
-        if (result?.username === profile.displayName.replace(/\s/g, '_')) {
+        if (
+          result?.username ===
+          destinyProfileEntity.displayName.replace(/\s/g, '_')
+        ) {
           const mixerAccountEntity = new MixerAccountEntity();
           mixerAccountEntity.username = result.username;
           mixerAccountEntity.id = result.id;
@@ -91,10 +94,15 @@ export class AppService {
           mixerAccountEntity.channel = channel;
 
           const accountLinkEntity = new AccountLinkEntity();
+          accountLinkEntity.destinyProfile = destinyProfileEntity;
           accountLinkEntity.accountType = 'mixer';
           accountLinkEntity.linkType = 'nameMatch';
-          accountLinkEntity.destinyProfile = profile;
           accountLinkEntity.mixerAccount = mixerAccountEntity;
+          accountLinkEntity.id =
+            accountLinkEntity.destinyProfile.membershipId +
+            accountLinkEntity.accountType +
+            accountLinkEntity.linkType +
+            accountLinkEntity.mixerAccount.id;
 
           mixerAccountEntities.push(mixerAccountEntity);
           mixerChannelEntities.push(channel);
@@ -115,6 +123,10 @@ export class AppService {
     const uniqueDestinyProfileEntities: DestinyProfileEntity[] = uniqueEntityArray(
       profilesToSave,
       'membershipId',
+    );
+    const uniqueAccountLinkEntities: AccountLinkEntity[] = uniqueEntityArray(
+      accountLinkEntities,
+      'id',
     );
 
     if (uniqueMixerChannelEntities.length) {
@@ -169,17 +181,17 @@ export class AppService {
         );
     }
 
-    if (accountLinkEntities.length) {
-      await upsert(AccountLinkEntity, accountLinkEntities, 'id')
+    if (uniqueAccountLinkEntities.length) {
+      await upsert(AccountLinkEntity, uniqueAccountLinkEntities, 'id')
         .then(() =>
           this.logger.log(
-            `Saved ${accountLinkEntities.length} Account Link Entities`,
+            `Saved ${uniqueAccountLinkEntities.length} Account Link Entities`,
             'MixerNameMatch',
           ),
         )
         .catch(() =>
           this.logger.error(
-            `Error saving ${accountLinkEntities.length} Account Link Entities`,
+            `Error saving ${uniqueAccountLinkEntities.length} Account Link Entities`,
             'MixerNameMatch',
           ),
         );

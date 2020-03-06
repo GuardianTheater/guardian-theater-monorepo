@@ -97,6 +97,15 @@
       "compilerOptions": {
         "tsConfigPath": "apps/twitch-vod-fetcher/tsconfig.app.json"
       }
+    },
+    "xbox-account-matcher": {
+      "type": "application",
+      "root": "apps/xbox-account-matcher",
+      "entryFile": "main",
+      "sourceRoot": "apps/xbox-account-matcher/src",
+      "compilerOptions": {
+        "tsConfigPath": "apps/xbox-account-matcher/tsconfig.app.json"
+      }
     }
   }
 }

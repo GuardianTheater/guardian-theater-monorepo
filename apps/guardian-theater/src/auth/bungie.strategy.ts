@@ -11,19 +11,15 @@ export class BungieStrategy extends PassportStrategy(Strategy, 'bungie') {
       tokenURL: 'https://www.bungie.net/platform/app/oauth/token/',
       clientID: process.env.BUNGIE_CLIENT_ID,
       clientSecret: process.env.BUNGIE_CLIENT_SECRET,
-      passReqToCallback: true,
     });
   }
   async validate(
-    request: any,
     accessToken: string,
     refreshToken: string,
     profile,
     done: Function,
   ) {
     try {
-      console.log(profile);
-
       const jwt: string = await this.authService.validateOAuthLogin(
         profile.id,
         'bungie',

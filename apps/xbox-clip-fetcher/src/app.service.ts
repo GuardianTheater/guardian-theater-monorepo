@@ -1,6 +1,5 @@
 import { Injectable, Logger } from '@nestjs/common';
 import { getConnection } from 'typeorm';
-import { DestinyProfileEntity } from '@services/shared-services/bungie/destiny-profile.entity';
 import { XboxAccountEntity } from '@services/shared-services/xbox/xbox-account.entity';
 import { Interval } from '@nestjs/schedule';
 import { XboxService } from '@services/shared-services';
@@ -19,7 +18,9 @@ export class AppService {
 
   @Interval(60000)
   handleInterval() {
-    this.fetchXboxClips();
+    this.fetchXboxClips().catch(() =>
+      this.logger.error(`Issue running fetchXboxClips`, 'XboxClipFetcher'),
+    );
   }
 
   async fetchXboxClips() {
@@ -31,45 +32,43 @@ export class AppService {
       new Date().setHours(new Date().getHours() - 1),
     ).toISOString();
 
-    const profilesToCheck = await getConnection()
-      .createQueryBuilder(DestinyProfileEntity, 'profile')
-      .leftJoinAndSelect('profile.xboxAccount', 'xboxAccount')
+    const accountsToCheck = await getConnection()
+      .createQueryBuilder(XboxAccountEntity, 'xboxAccount')
       .orderBy('xboxAccount.lastClipCheck')
       .where(
-        'profile.membershipType = 1 AND (profile.xboxAccount is null OR xboxAccount.lastClipCheck < :staleCheck OR xboxAccount.lastClipCheck is null)',
+        'xboxAccount.lastClipCheck < :staleCheck OR xboxAccount.lastClipCheck is null',
         {
           staleCheck,
         },
       )
       .limit(100)
-      .getMany();
+      .getMany()
+      .catch(() => {
+        this.logger.error(
+          `Error fetching Xbox Accounts from database`,
+          'XboxClipFetcher',
+        );
+        return [] as XboxAccountEntity[];
+      });
 
     // TODO: Check if any linked profiles have played Destiny since the dateCutOff,
     // skip checking clips if they have not
 
     // TODO: Skip loading clips if the user hasn't played since the last clip check
 
-    const destinyProfileEntities: DestinyProfileEntity[] = [];
     const xboxAccountEntities: XboxAccountEntity[] = [];
     const xboxClipEntitiesToSave: XboxClipEntity[] = [];
     const xboxClipEntitiesToDelete: XboxClipEntity[] = [];
 
     const xboxClipFetchers: Promise<any>[] = [];
 
-    for (let i = 0; i < profilesToCheck.length; i++) {
-      const loadedProfile = profilesToCheck[i];
-      const profile = new DestinyProfileEntity();
-      profile.membershipId = loadedProfile.membershipId;
-      profile.membershipType = loadedProfile.membershipType;
-      profile.displayName = loadedProfile.displayName;
+    for (let i = 0; i < accountsToCheck.length; i++) {
+      const loadedAccount = accountsToCheck[i];
 
       const xboxAccount = new XboxAccountEntity();
-      xboxAccount.gamertag = profile.displayName;
+      xboxAccount.gamertag = loadedAccount.gamertag;
       xboxAccount.lastClipCheck = new Date().toISOString();
 
-      profile.xboxAccount = xboxAccount;
-
-      destinyProfileEntities.push(profile);
       xboxAccountEntities.push(xboxAccount);
 
       const clipFetcher = this.xboxService
@@ -100,17 +99,24 @@ export class AppService {
           return toSave;
         })
         .then(async toSave => {
-          if (profile?.xboxAccount?.gamertag) {
+          if (xboxAccount.gamertag) {
             const existingClips = await getConnection()
-              .createQueryBuilder(XboxClipEntity, 'clip')
-              .where('clip.xboxAccount = :gamertag', {
-                gamertag: profile.xboxAccount.gamertag,
+              .createQueryBuilder(XboxClipEntity, 'xboxClip')
+              .where('xboxClip.xboxAccount = :gamertag', {
+                gamertag: xboxAccount.gamertag,
               })
-              .getMany();
+              .getMany()
+              .catch(() => {
+                this.logger.log(
+                  `Error fetching exisitng clips from database.`,
+                  'XboxClipFetcher',
+                );
+                return [] as XboxClipEntity[];
+              });
             if (existingClips.length) {
               const newClipIds = new Set(toSave.map(clip => clip.gameClipId));
-              for (let j = 0; j < profile.xboxAccount.clips.length; j++) {
-                const existingClip = profile.xboxAccount.clips[j];
+              for (let j = 0; j < xboxAccount.clips.length; j++) {
+                const existingClip = xboxAccount.clips[j];
                 if (newClipIds.has(existingClip.gameClipId)) {
                   continue;
                 }
@@ -121,7 +127,7 @@ export class AppService {
         })
         .catch(() =>
           this.logger.error(
-            `Error fetching Xbox Clips for ${profile.xboxAccount.gamertag}`,
+            `Error fetching Xbox Clips for ${xboxAccount.gamertag}`,
             'XboxClipFetcher',
           ),
         );
@@ -146,11 +152,6 @@ export class AppService {
       'gamertag',
     );
 
-    const uniqueDestinyProfileEntities = uniqueEntityArray(
-      destinyProfileEntities,
-      'membershipId',
-    );
-
     const uniqueXboxClipEntitiesToSave = uniqueEntityArray(
       xboxClipEntitiesToSave,
       'gameClipId',
@@ -172,26 +173,6 @@ export class AppService {
         .catch(() =>
           this.logger.error(
             `Error saving ${uniqueXboxAccountEntities.length} Xbox Accounts.`,
-            'XboxClipFetcher',
-          ),
-        );
-    }
-
-    if (uniqueDestinyProfileEntities.length) {
-      await upsert(
-        DestinyProfileEntity,
-        uniqueDestinyProfileEntities,
-        'membershipId',
-      )
-        .then(() =>
-          this.logger.log(
-            `Saved ${uniqueDestinyProfileEntities.length} Destiny Profiles.`,
-            'XboxClipFetcher',
-          ),
-        )
-        .catch(() =>
-          this.logger.error(
-            `Error saving ${uniqueDestinyProfileEntities.length} Destiny Profiles.`,
             'XboxClipFetcher',
           ),
         );

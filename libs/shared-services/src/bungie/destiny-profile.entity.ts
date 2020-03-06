@@ -1,13 +1,11 @@
 import {
   Entity,
-  OneToOne,
   JoinColumn,
   Column,
   OneToMany,
   PrimaryColumn,
   ManyToOne,
 } from 'typeorm';
-import { XboxAccountEntity } from '../xbox/xbox-account.entity';
 import { PgcrEntryEntity } from './pgcr-entry.entity';
 import { BungieProfileEntity } from './bungie-profile.entity';
 import { AccountLinkEntity } from '../helpers/account-link.entity';
@@ -41,14 +39,6 @@ export class DestinyProfileEntity {
   )
   entries?: PgcrEntryEntity[];
 
-  @OneToOne(() => XboxAccountEntity, {
-    nullable: true,
-  })
-  @JoinColumn({
-    name: 'xboxAccount',
-  })
-  xboxAccount?: XboxAccountEntity;
-
   @OneToMany(
     () => AccountLinkEntity,
     link => link.destinyProfile,
@@ -72,6 +62,12 @@ export class DestinyProfileEntity {
     nullable: true,
   })
   activitiesLastChecked?: string;
+
+  @Column({
+    type: 'timestamptz',
+    nullable: true,
+  })
+  xboxNameMatchChecked?: string;
 
   @Column({
     type: 'timestamptz',

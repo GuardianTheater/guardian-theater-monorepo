@@ -49,7 +49,14 @@ export class AppService {
     const profile = await getConnection()
       .createQueryBuilder(DestinyProfileEntity, 'profile')
       .leftJoinAndSelect('profile.bnetProfile', 'bnetProfile')
-      .leftJoinAndSelect('bnetProfile.profiles', 'profiles')
+      .leftJoinAndSelect(
+        'bnetProfile.profiles',
+        'profiles',
+        'profiles.membershipId != :destinyMembershipId',
+        {
+          destinyMembershipId,
+        },
+      )
       .where('profile.membershipId = :destinyMembershipId', {
         destinyMembershipId,
       })
@@ -84,7 +91,7 @@ export class AppService {
         'recordings',
         'entry.timePlayedRange && recordings.durationRange',
       )
-      .leftJoinAndSelect('destinyProfile.xboxAccount', 'xboxAccount')
+      .leftJoinAndSelect('accountLinks.xboxAccount', 'xboxAccount')
       .leftJoinAndSelect(
         'xboxAccount.clips',
         'clips',
@@ -97,17 +104,14 @@ export class AppService {
         'linkedDestinyProfile.membershipId != destinyProfile.membershipId',
       )
       .leftJoinAndSelect(
-        'linkedDestinyProfile.xboxAccount',
-        'linkedXboxAccount',
+        'linkedDestinyProfile.accountLinks',
+        'linkedAccountLinks',
       )
+      .leftJoinAndSelect('linkedAccountLinks.xboxAccount', 'linkedXboxAccount')
       .leftJoinAndSelect(
         'linkedXboxAccount.clips',
         'linkedClips',
         'entry.timePlayedRange && linkedClips.dateRecordedRange',
-      )
-      .leftJoinAndSelect(
-        'linkedDestinyProfile.accountLinks',
-        'linkedAccountLinks',
       )
       .leftJoinAndSelect(
         'linkedAccountLinks.twitchAccount',
@@ -158,19 +162,6 @@ export class AppService {
         const entryStartTime = new Date(
           JSON.parse(instanceEntryResponse.timePlayedRange)[0],
         );
-        if (entryProfile.xboxAccount) {
-          const gamertag = entryProfile.xboxAccount.gamertag;
-          for (let k = 0; k < entryProfile.xboxAccount.clips.length; k++) {
-            const xboxClip = entryProfile.xboxAccount.clips[k];
-            const video = {
-              type: 'xbox',
-              url: `https://xboxrecord.us/gamer/${encodeURIComponent(
-                gamertag,
-              )}/clip/${xboxClip.gameClipId}/scid/${xboxClip.gameClipId}`,
-            };
-            encounteredVideos.push(video);
-          }
-        }
         const accountLinks = [];
         for (let k = 0; k < entryProfile.accountLinks.length; k++) {
           accountLinks.push(entryProfile.accountLinks[k]);
@@ -181,29 +172,24 @@ export class AppService {
               for (let m = 0; m < childProfile.accountLinks?.length; m++) {
                 accountLinks.push(childProfile.accountLinks[m]);
               }
-
-              if (childProfile.xboxAccount) {
-                const gamertag = childProfile.xboxAccount.gamertag;
-                for (
-                  let n = 0;
-                  n < childProfile.xboxAccount.clips.length;
-                  n++
-                ) {
-                  const xboxClip = childProfile.xboxAccount.clips[n];
-                  const video = {
-                    type: 'xbox',
-                    url: `https://xboxrecord.us/gamer/${encodeURIComponent(
-                      gamertag,
-                    )}/clip/${xboxClip.gameClipId}/scid/${xboxClip.gameClipId}`,
-                  };
-                  encounteredVideos.push(video);
-                }
-              }
             }
           }
         }
         for (let k = 0; k < accountLinks.length; k++) {
           const accountLink = accountLinks[k];
+          if (accountLink.xboxAccount) {
+            const gamertag = accountLink.xboxAccount.gamertag;
+            for (let l = 0; l < accountLink.xboxAccount.clips.length; l++) {
+              const xboxClip = accountLink.xboxAccount.clips[l];
+              const video = {
+                type: 'xbox',
+                url: `https://xboxrecord.us/gamer/${encodeURIComponent(
+                  gamertag,
+                )}/clip/${xboxClip.gameClipId}/scid/${xboxClip.gameClipId}`,
+              };
+              encounteredVideos.push(video);
+            }
+          }
           if (accountLink.twitchAccount) {
             for (let l = 0; l < accountLink.twitchAccount.videos.length; l++) {
               const twitchVideo = accountLink.twitchAccount.videos[l];
@@ -304,7 +290,7 @@ export class AppService {
       .leftJoinAndSelect('accountLinks.mixerAccount', 'mixerAccount')
       .leftJoinAndSelect('mixerAccount.channel', 'channel')
       .leftJoinAndSelect('channel.recordings', 'recordings')
-      .leftJoinAndSelect('destinyProfile.xboxAccount', 'xboxAccount')
+      .leftJoinAndSelect('accountLinks.xboxAccount', 'xboxAccount')
       .leftJoinAndSelect('xboxAccount.clips', 'clips')
       .where('destinyProfile.membershipId = ANY (:membershipIds)', {
         membershipIds,

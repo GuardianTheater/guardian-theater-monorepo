@@ -39,7 +39,7 @@ export class AppService {
           staleCheck,
         },
       )
-      .limit(150)
+      .limit(100)
       .getMany();
 
     // TODO: Ignore channels attached to inactive Destiny Profiles

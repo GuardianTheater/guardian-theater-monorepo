@@ -54,24 +54,13 @@ export class AppService {
       .limit(10)
       .getMany();
 
-    if (usersToCheck.length) {
-      await this.updateActivityHistoryForDestinyProfiles(usersToCheck);
-    }
-  }
-
-  async updateActivityHistoryForDestinyProfiles(
-    profiles: {
-      membershipId: string;
-      membershipType: BungieMembershipType;
-    }[],
-  ) {
     const existingActivities: PgcrEntryEntity[] = [];
 
-    const loadAllActivities = [];
+    const loadAllEntries = [];
 
-    for (let i = 0; i < profiles.length; i++) {
-      const { membershipId } = profiles[i];
-      const loadActivities = getRepository(PgcrEntryEntity)
+    for (let i = 0; i < usersToCheck.length; i++) {
+      const { membershipId } = usersToCheck[i];
+      const loadEntries = getRepository(PgcrEntryEntity)
         .find({
           where: {
             profile: membershipId,
@@ -79,10 +68,10 @@ export class AppService {
           relations: ['instance'],
         })
         .then(res => res.map(entry => existingActivities.push(entry)));
-      loadAllActivities.push(loadActivities);
+      loadAllEntries.push(loadEntries);
     }
 
-    await Promise.all(loadAllActivities).catch(() =>
+    await Promise.all(loadAllEntries).catch(() =>
       this.logger.error('Error loading existing activities.'),
     );
 
@@ -93,8 +82,11 @@ export class AppService {
     const loadedProfiles: DestinyProfileComponent[] = [];
     const loadAllProfiles = [];
 
-    for (let i = 0; i < profiles.length; i++) {
-      const { membershipId: destinyMembershipId, membershipType } = profiles[i];
+    for (let i = 0; i < usersToCheck.length; i++) {
+      const {
+        membershipId: destinyMembershipId,
+        membershipType,
+      } = usersToCheck[i];
       const loadProfile = getProfile(
         config => this.bungieService.bungieRequest(config),
         {
@@ -225,7 +217,7 @@ export class AppService {
       activity: DestinyHistoricalStatsPeriodGroup,
     ) => {
       await getPostGameCarnageReport(
-        config => this.bungieService.bungieRequest(config),
+        config => this.bungieService.bungieRequest(config, true),
         {
           activityId: activity.activityDetails.instanceId,
         },
@@ -287,6 +279,7 @@ export class AppService {
         .catch(() =>
           this.logger.error(
             `Error fetching PGCR for ${activity.activityDetails.instanceId}`,
+            'ActivityHarvester',
           ),
         );
     };
