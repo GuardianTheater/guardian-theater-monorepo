@@ -8,13 +8,13 @@ export class PgcrEntity {
   instanceId: string;
 
   @Column()
-  activityHash: number;
-
-  @Column()
   membershipType: BungieMembershipType;
 
   @Column({ type: 'timestamptz' })
   period: string;
+
+  @Column()
+  activityHash: string;
 
   @OneToMany(
     () => PgcrEntryEntity,

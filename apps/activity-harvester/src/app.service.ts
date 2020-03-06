@@ -226,10 +226,12 @@ export class AppService {
           const pgcrEntity = new PgcrEntity();
 
           pgcrEntity.instanceId = pgcr.Response.activityDetails.instanceId;
-          pgcrEntity.activityHash = pgcr.Response.activityDetails.referenceId;
+          pgcrEntity.activityHash =
+            pgcr.Response.activityDetails.referenceId + '';
           pgcrEntity.membershipType =
             pgcr.Response.activityDetails.membershipType;
           pgcrEntity.period = pgcr.Response.period;
+
           pgcrEntities.push(pgcrEntity);
 
           for (let i = 0; i < pgcr.Response.entries.length; i++) {
@@ -238,22 +240,24 @@ export class AppService {
               entry.player.destinyUserInfo.membershipId &&
               entry.player.destinyUserInfo.displayName
             ) {
-              const entryEntity = new PgcrEntryEntity();
-              entryEntity.instance = pgcrEntity;
+              const pgcrEntryEntity = new PgcrEntryEntity();
+              pgcrEntryEntity.instance = pgcrEntity;
 
-              const profile = new DestinyProfileEntity();
+              const destinyProfileEntity = new DestinyProfileEntity();
 
-              profile.displayName = entry.player.destinyUserInfo.displayName;
-              profile.membershipId = entry.player.destinyUserInfo.membershipId;
-              profile.membershipType =
+              destinyProfileEntity.displayName =
+                entry.player.destinyUserInfo.displayName;
+              destinyProfileEntity.membershipId =
+                entry.player.destinyUserInfo.membershipId;
+              destinyProfileEntity.membershipType =
                 entry.player.destinyUserInfo.membershipType;
 
-              entryEntity.profile = profile;
+              pgcrEntryEntity.profile = destinyProfileEntity;
 
-              destinyProfileEntities.push(profile);
+              destinyProfileEntities.push(destinyProfileEntity);
 
               if (entry.values.team) {
-                entryEntity.team = entry.values.team.basic.value;
+                pgcrEntryEntity.team = entry.values.team.basic.value;
               }
 
               let startTime = new Date(pgcrEntity.period);
@@ -272,8 +276,8 @@ export class AppService {
                 ),
               );
 
-              entryEntity.timePlayedRange = `[${startTime.toISOString()}, ${endTime.toISOString()}]`;
-              pgcrEntryEntities.push(entryEntity);
+              pgcrEntryEntity.timePlayedRange = `[${startTime.toISOString()}, ${endTime.toISOString()}]`;
+              pgcrEntryEntities.push(pgcrEntryEntity);
             }
           }
         })
