@@ -8,6 +8,9 @@ export class PgcrEntity {
   instanceId: string;
 
   @Column()
+  activityHash: number;
+
+  @Column()
   membershipType: BungieMembershipType;
 
   @Column({ type: 'timestamptz' })

@@ -226,6 +226,7 @@ export class AppService {
           const pgcrEntity = new PgcrEntity();
 
           pgcrEntity.instanceId = pgcr.Response.activityDetails.instanceId;
+          pgcrEntity.activityHash = pgcr.Response.activityDetails.referenceId;
           pgcrEntity.membershipType =
             pgcr.Response.activityDetails.membershipType;
           pgcrEntity.period = pgcr.Response.period;
