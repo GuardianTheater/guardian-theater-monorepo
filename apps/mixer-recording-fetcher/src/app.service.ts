@@ -71,11 +71,20 @@ export class AppService {
             recordingEntity.channel = channel;
             recordingEntity.expiresAt = recording.expiresAt;
             recordingEntity.id = recording.id;
+            recordingEntity.title = recording.name;
             recordingEntity.durationRange = `[${recording.createdAt},${new Date(
               new Date(recording.createdAt).setSeconds(
                 new Date(recording.createdAt).getSeconds() + recording.duration,
               ),
             ).toISOString()}]`;
+
+            for (let k = 0; k < recording.vods.length; k++) {
+              const vod = recording.vods[k];
+              if (vod.format === 'thumbnail') {
+                recordingEntity.thumbnail = `${vod.baseUrl}source.png`;
+              }
+            }
+
             recordingsToSave.push(recordingEntity);
           }
         })

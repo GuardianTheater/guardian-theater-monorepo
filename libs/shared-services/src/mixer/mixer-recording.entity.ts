@@ -12,6 +12,14 @@ export class MixerRecordingEntity {
   @Column('tstzrange')
   durationRange: string;
 
+  @Column({ nullable: true })
+  title?: string;
+
+  @Column({
+    nullable: true,
+  })
+  thumbnail?: string;
+
   @ManyToOne(
     () => MixerChannelEntity,
     channel => channel.recordings,

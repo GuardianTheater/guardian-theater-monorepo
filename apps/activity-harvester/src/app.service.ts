@@ -228,6 +228,8 @@ export class AppService {
           pgcrEntity.instanceId = pgcr.Response.activityDetails.instanceId;
           pgcrEntity.activityHash =
             pgcr.Response.activityDetails.referenceId + '';
+          pgcrEntity.directorActivityHash =
+            pgcr.Response.activityDetails.directorActivityHash + '';
           pgcrEntity.membershipType =
             pgcr.Response.activityDetails.membershipType;
           pgcrEntity.period = pgcr.Response.period;

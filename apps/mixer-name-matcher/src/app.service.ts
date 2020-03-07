@@ -72,11 +72,8 @@ export class AppService {
       ),
     );
 
-    const profilesToSave: DestinyProfileEntity[] = [];
-
     for (let i = 0; i < profileEntities.length; i++) {
       const destinyProfileEntity = profileEntities[i];
-      profilesToSave.push(destinyProfileEntity);
       for (let j = 0; j < results.length; j++) {
         const result = results[j];
         if (
@@ -121,7 +118,7 @@ export class AppService {
       'id',
     );
     const uniqueDestinyProfileEntities: DestinyProfileEntity[] = uniqueEntityArray(
-      profilesToSave,
+      profileEntities,
       'membershipId',
     );
     const uniqueAccountLinkEntities: AccountLinkEntity[] = uniqueEntityArray(

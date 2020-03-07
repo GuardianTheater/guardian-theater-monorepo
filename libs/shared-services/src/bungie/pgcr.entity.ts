@@ -13,8 +13,11 @@ export class PgcrEntity {
   @Column({ type: 'timestamptz' })
   period: string;
 
-  @Column()
-  activityHash: string;
+  @Column({ nullable: true })
+  activityHash?: string;
+
+  @Column({ nullable: true })
+  directorActivityHash?: string;
 
   @OneToMany(
     () => PgcrEntryEntity,
