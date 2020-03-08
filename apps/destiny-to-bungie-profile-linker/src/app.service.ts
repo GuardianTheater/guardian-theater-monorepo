@@ -13,11 +13,15 @@ export class AppService {
   constructor(
     private readonly bungieService: BungieService,
     private readonly logger: Logger,
-  ) {}
+  ) {
+    this.logger.setContext('DestinyToBungieProfileLinker');
+  }
 
   @Interval(60000)
   handleInterval() {
-    this.linkBungieAccounts();
+    this.linkBungieAccounts().catch(() =>
+      this.logger.error(`Error running linkBungieAccounts`),
+    );
   }
 
   async linkBungieAccounts() {
@@ -27,7 +31,11 @@ export class AppService {
         'profile.bnetProfileChecked is null AND profile.membershipType > 0',
       )
       .take(100)
-      .getMany();
+      .getMany()
+      .catch(() => {
+        this.logger.error(`Error fetching Destiny Profiles from database.`);
+        return [] as DestinyProfileEntity[];
+      });
 
     const requests = [];
     const destinyProfiles: DestinyProfileEntity[] = [];
@@ -80,7 +88,6 @@ export class AppService {
         .catch(() =>
           this.logger.error(
             `Error fetching linked profiles for ${profile.membershipType}-${profile.membershipId}`,
-            'DestinyToBungieProfileLinker',
           ),
         );
       requests.push(request);
@@ -89,15 +96,11 @@ export class AppService {
     if (requests.length) {
       await Promise.all(requests)
         .then(() => {
-          this.logger.log(
-            `Fetched ${profilesToCheck.length} Linked Profiles`,
-            'DestinyToBungieProfileLinker',
-          );
+          this.logger.log(`Fetched ${profilesToCheck.length} Linked Profiles`);
         })
         .catch(() =>
           this.logger.error(
             `Error fetching ${profilesToCheck.length} Linked Profiles`,
-            'DestinyToBungieProfileLinker',
           ),
         );
     }
@@ -112,13 +115,11 @@ export class AppService {
         .then(() =>
           this.logger.log(
             `Saved ${uniqueBungieProfiles.length} Bungie Profiles.`,
-            'DestinyToBungieProfileLinker',
           ),
         )
         .catch(() =>
           this.logger.error(
             `Error saving ${uniqueBungieProfiles.length} Bungie Profiles.`,
-            'DestinyToBungieProfileLinker',
           ),
         );
     }
@@ -133,13 +134,11 @@ export class AppService {
         .then(() =>
           this.logger.log(
             `Saved ${uniqueDestinyProfiles.length} Destiny Profiles.`,
-            'DestinyToBungieProfileLinker',
           ),
         )
         .catch(() =>
           this.logger.error(
             `Error saving ${uniqueDestinyProfiles.length} Destiny Profiles.`,
-            'DestinyToBungieProfileLinker',
           ),
         );
     }

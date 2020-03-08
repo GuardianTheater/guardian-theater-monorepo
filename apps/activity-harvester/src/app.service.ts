@@ -25,20 +25,20 @@ export class AppService {
   constructor(
     private readonly bungieService: BungieService,
     private readonly logger: Logger,
-  ) {}
+  ) {
+    this.logger.setContext('ActivityHarvester');
+  }
 
   @Interval(60000)
   handleInterval() {
-    this.harvestActivityHistory();
+    this.harvestActivityHistory().catch(() =>
+      this.logger.error(`Error running harvestActivityHistory`),
+    );
   }
 
   async harvestActivityHistory() {
     const staleVisitor = new Date(
       new Date().setDate(new Date().getDate() - 7),
-    ).toISOString();
-
-    const staleCheck = new Date(
-      new Date().setMinutes(new Date().getMinutes() - 5),
     ).toISOString();
 
     const profilesWithVideos = getConnection()
@@ -66,7 +66,11 @@ export class AppService {
       )
       .orderBy('profile.activitiesLastChecked', 'ASC', 'NULLS FIRST')
       .take(5)
-      .getMany();
+      .getMany()
+      .catch(() => {
+        this.logger.error(`Error fetching Destiny Profiles from database`);
+        return [] as DestinyProfileEntity[];
+      });
 
     const existingActivities: PgcrEntryEntity[] = [];
 
@@ -81,7 +85,12 @@ export class AppService {
           },
           relations: ['instance'],
         })
-        .then(res => res.map(entry => existingActivities.push(entry)));
+        .then(res => res.map(entry => existingActivities.push(entry)))
+        .catch(() => {
+          this.logger.error(
+            `Error loading Entries from database for ${membershipId}`,
+          );
+        });
       loadAllEntries.push(loadEntries);
     }
 
@@ -112,14 +121,14 @@ export class AppService {
         .then(res => loadedProfiles.push(res.Response.profile.data))
         .catch(() =>
           this.logger.error(
-            `Error fetching Profile for ${membershipType}-${destinyMembershipId}`,
+            `Error fetching Profile for ${membershipType}-${destinyMembershipId} from Bungie`,
           ),
         );
       loadAllProfiles.push(loadProfile);
     }
 
     await Promise.all(loadAllProfiles).catch(() =>
-      this.logger.error('Error fetching Profiles.'),
+      this.logger.error('Error fetching Profiles from Bungie.'),
     );
 
     const activities: DestinyHistoricalStatsPeriodGroup[] = [];
@@ -177,7 +186,6 @@ export class AppService {
 
             this.logger.error(
               `Error fetching Activity History for ${membershipType}-${destinyMembershipId}-${characterId}`,
-              `ActivityHarvester`,
             );
           });
       }
@@ -200,14 +208,11 @@ export class AppService {
 
     await Promise.all(activitiesPromises)
       .then(() =>
-        this.logger.log(`Fetched Activity History.`, 'ActivityHarvester'),
-      )
-      .catch(() =>
-        this.logger.error(
-          `Error fetching Activity History`,
-          'ActivityHarvester',
+        this.logger.log(
+          `Fetched ${activitiesPromises.length} pages of Activity History.`,
         ),
-      );
+      )
+      .catch(() => this.logger.error(`Error fetching Activity History`));
 
     const uniqueInstanceId = Array.from(
       new Set(activities.map(activity => activity.activityDetails.instanceId)),
@@ -300,7 +305,6 @@ export class AppService {
         .catch(() =>
           this.logger.error(
             `Error fetching PGCR for ${activity.activityDetails.instanceId}`,
-            'ActivityHarvester',
           ),
         );
     };
@@ -318,23 +322,20 @@ export class AppService {
             if (!res || !res.instanceId) {
               return createPgcrPromise(activity);
             }
-          });
+          })
+          .catch(() =>
+            this.logger.error(
+              `Error fetching PGCR for ${activity.activityDetails.instanceId}`,
+            ),
+          );
         pgcrPromises.push(pgcrPromise);
       }
     }
 
     await Promise.all(pgcrPromises)
-      .then(() =>
-        this.logger.log(
-          `Fetched ${pgcrPromises.length} PGCRs.`,
-          'ActivityHarvester',
-        ),
-      )
+      .then(() => this.logger.log(`Fetched ${pgcrPromises.length} PGCRs.`))
       .catch(() =>
-        this.logger.error(
-          `Error fetching ${pgcrPromises.length} PGCRs.`,
-          'ActivityHarvester',
-        ),
+        this.logger.error(`Error fetching ${pgcrPromises.length} PGCRs.`),
       );
 
     const uniqueProfiles = uniqueEntityArray(
@@ -344,17 +345,9 @@ export class AppService {
 
     if (uniqueProfiles.length) {
       await upsert(DestinyProfileEntity, uniqueProfiles, 'membershipId')
-        .then(() =>
-          this.logger.log(
-            `Saved ${uniqueProfiles.length} Profiles.`,
-            'ActivityHarvester',
-          ),
-        )
+        .then(() => this.logger.log(`Saved ${uniqueProfiles.length} Profiles.`))
         .catch(() =>
-          this.logger.error(
-            `Error saving ${uniqueProfiles.length} Profiles.`,
-            'ActivityHarvester',
-          ),
+          this.logger.error(`Error saving ${uniqueProfiles.length} Profiles.`),
         );
     }
 
@@ -362,17 +355,9 @@ export class AppService {
 
     if (uniquePgcrs.length) {
       await upsert(PgcrEntity, uniquePgcrs, 'instanceId')
-        .then(() =>
-          this.logger.log(
-            `Saved ${uniquePgcrs.length} PGCRs.`,
-            'ActivityHarvester',
-          ),
-        )
+        .then(() => this.logger.log(`Saved ${uniquePgcrs.length} PGCRs.`))
         .catch(() =>
-          this.logger.error(
-            `Error saving ${uniquePgcrs.length} PGCRs.`,
-            'ActivityHarvester',
-          ),
+          this.logger.error(`Error saving ${uniquePgcrs.length} PGCRs.`),
         );
     }
 
@@ -405,17 +390,9 @@ export class AppService {
 
     if (uniqueEntries.length) {
       await upsert(PgcrEntryEntity, uniqueEntries, 'profile", "instance')
-        .then(() =>
-          this.logger.log(
-            `Saved ${uniqueEntries.length} Entries.`,
-            'ActivityHarvester',
-          ),
-        )
+        .then(() => this.logger.log(`Saved ${uniqueEntries.length} Entries.`))
         .catch(() =>
-          this.logger.error(
-            `Error saving ${uniqueEntries.length} Entries.`,
-            'ActivityHarvester',
-          ),
+          this.logger.error(`Error saving ${uniqueEntries.length} Entries.`),
         );
     }
 

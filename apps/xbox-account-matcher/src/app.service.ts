@@ -15,15 +15,14 @@ export class AppService {
   constructor(
     private readonly xboxService: XboxService,
     private readonly logger: Logger,
-  ) {}
+  ) {
+    this.logger.setContext('XboxAccountMatcher');
+  }
 
   @Interval(60000)
   handleInterval() {
     this.matchXboxAccounts().catch(() =>
-      this.logger.error(
-        `Issue running matchXboxAccounts`,
-        'XboxAccountMatcher',
-      ),
+      this.logger.error(`Error running matchXboxAccounts`),
     );
   }
 
@@ -32,11 +31,14 @@ export class AppService {
       .createQueryBuilder(DestinyProfileEntity, 'profile')
       .leftJoinAndSelect('profile.accountLinks', 'accountLinks')
       .leftJoinAndSelect('accountLinks.xboxAccount', 'xboxAccount')
-      .where(
-        'profile.membershipType = 1 AND profile.xboxNameMatchChecked is null',
-      )
+      .where('profile.membershipType = 1')
+      .orderBy('profile.xboxNameMatchChecked', 'ASC', 'NULLS FIRST')
       .take(1000)
-      .getMany();
+      .getMany()
+      .catch(() => {
+        this.logger.error(`Error retrieving Destiny Profiles from database`);
+        return [] as DestinyProfileEntity[];
+      });
 
     const destinyProfileEntities: DestinyProfileEntity[] = [];
     const xboxAccountEntities: XboxAccountEntity[] = [];
@@ -91,13 +93,11 @@ export class AppService {
         .then(() =>
           this.logger.log(
             `Saved ${uniqueXboxAccountEntities.length} Xbox Accounts.`,
-            'XboxAccountMatcher',
           ),
         )
         .catch(() =>
           this.logger.error(
             `Error saving ${uniqueXboxAccountEntities.length} Xbox Accounts.`,
-            'XboxAccountMatcher',
           ),
         );
     }
@@ -111,13 +111,11 @@ export class AppService {
         .then(() =>
           this.logger.log(
             `Saved ${uniqueDestinyProfileEntities.length} Destiny Profiles.`,
-            'XboxAccountMatcher',
           ),
         )
         .catch(() =>
           this.logger.error(
             `Error saving ${uniqueDestinyProfileEntities.length} Destiny Profiles.`,
-            'XboxAccountMatcher',
           ),
         );
     }
@@ -127,13 +125,11 @@ export class AppService {
         .then(() =>
           this.logger.log(
             `Saved ${uniqueAccountLinkEntities.length} Account Links.`,
-            'XboxAccountMatcher',
           ),
         )
         .catch(() =>
           this.logger.error(
             `Error saving ${uniqueAccountLinkEntities.length} Account Links.`,
-            'XboxAccountMatcher',
           ),
         );
     }

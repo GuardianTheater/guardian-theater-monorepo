@@ -14,12 +14,14 @@ export class AppService {
   constructor(
     private readonly xboxService: XboxService,
     private readonly logger: Logger,
-  ) {}
+  ) {
+    this.logger.setContext('XboxClipFetcher');
+  }
 
   @Interval(60000)
   handleInterval() {
     this.fetchXboxClips().catch(() =>
-      this.logger.error(`Issue running fetchXboxClips`, 'XboxClipFetcher'),
+      this.logger.error(`Issue running fetchXboxClips`),
     );
   }
 
@@ -28,26 +30,13 @@ export class AppService {
       new Date().setDate(new Date().getDate() - this.daysOfHistory),
     );
 
-    const staleCheck = new Date(
-      new Date().setHours(new Date().getHours() - 1),
-    ).toISOString();
-
     const accountsToCheck = await getConnection()
       .createQueryBuilder(XboxAccountEntity, 'xboxAccount')
-      .where(
-        'xboxAccount.lastClipCheck < :staleCheck OR xboxAccount.lastClipCheck is null',
-        {
-          staleCheck,
-        },
-      )
       .orderBy('xboxAccount.lastClipCheck', 'ASC', 'NULLS FIRST')
       .take(100)
       .getMany()
       .catch(() => {
-        this.logger.error(
-          `Error fetching Xbox Accounts from database`,
-          'XboxClipFetcher',
-        );
+        this.logger.error(`Error fetching Xbox Accounts from database`);
         return [] as XboxAccountEntity[];
       });
 
@@ -109,7 +98,6 @@ export class AppService {
               .catch(() => {
                 this.logger.error(
                   `Error fetching exisitng clips from database.`,
-                  'XboxClipFetcher',
                 );
                 return [] as XboxClipEntity[];
               });
@@ -128,7 +116,6 @@ export class AppService {
         .catch(() =>
           this.logger.error(
             `Error fetching Xbox Clips for ${xboxAccount.gamertag}`,
-            'XboxClipFetcher',
           ),
         );
 
@@ -138,12 +125,10 @@ export class AppService {
     if (xboxClipFetchers.length) {
       this.logger.log(
         `Fetching Xbox Clips for ${xboxClipFetchers.length} profiles.`,
-        'XboxClipFetcher',
       );
       await Promise.all(xboxClipFetchers);
       this.logger.log(
         `Fetched Xbox Clips for ${xboxClipFetchers.length} profiles.`,
-        'XboxClipFetcher',
       );
     }
 
@@ -167,13 +152,11 @@ export class AppService {
         .then(() =>
           this.logger.log(
             `Saved ${uniqueXboxAccountEntities.length} Xbox Accounts.`,
-            'XboxClipFetcher',
           ),
         )
         .catch(() =>
           this.logger.error(
             `Error saving ${uniqueXboxAccountEntities.length} Xbox Accounts.`,
-            'XboxClipFetcher',
           ),
         );
     }
@@ -183,13 +166,11 @@ export class AppService {
         .then(() =>
           this.logger.log(
             `Saved ${uniqueXboxClipEntitiesToSave.length} Xbox Clips.`,
-            'XboxClipFetcher',
           ),
         )
         .catch(() =>
           this.logger.error(
             `Error saving ${uniqueXboxClipEntitiesToSave.length} Xbox Clips.`,
-            'XboxClipFetcher',
           ),
         );
     }
@@ -203,20 +184,21 @@ export class AppService {
           .delete()
           .from(XboxClipEntity)
           .where('gameClipId = :gameClipId', { gameClipId: entity.gameClipId })
-          .execute();
+          .execute()
+          .catch(() =>
+            this.logger.error(`Error deleting Xbox Clip ${entity.gameClipId}`),
+          );
         deletes.push(deleteJob);
       }
       await Promise.all(deletes)
         .then(() =>
           this.logger.log(
             `Deleted ${uniqueXboxClipEntitiesToDelete.length} clips.`,
-            'XboxClipFetcher',
           ),
         )
         .catch(() =>
           this.logger.error(
             `Issue deleting ${uniqueXboxClipEntitiesToDelete.length} clips`,
-            'XboxClipFetcher',
           ),
         );
     }

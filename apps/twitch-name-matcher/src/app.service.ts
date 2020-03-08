@@ -14,11 +14,15 @@ export class AppService {
   constructor(
     private readonly twitchService: TwitchService,
     private readonly logger: Logger,
-  ) {}
+  ) {
+    this.logger.setContext(`TwitchNameMatcher`);
+  }
 
   @Interval(60000)
   handleInterval() {
-    this.twitchNameMatch();
+    this.twitchNameMatch().catch(() =>
+      this.logger.error(`Error running twitchNameMatch`),
+    );
   }
 
   async twitchNameMatch() {
@@ -26,7 +30,11 @@ export class AppService {
       .createQueryBuilder(DestinyProfileEntity, 'profile')
       .where('profile.twitchNameMatchChecked is null')
       .take(1000)
-      .getMany();
+      .getMany()
+      .catch(() => {
+        this.logger.error(`Error retrieving Destiny Profiles from database`);
+        return [] as DestinyProfileEntity[];
+      });
 
     const uniqueNames = Array.from(
       new Set(loadedProfiles.map(profile => profile.displayName)),
@@ -54,17 +62,22 @@ export class AppService {
           })
           .catch(() =>
             this.logger.error(
-              `Error fetching Twitch accounts`,
-              'TwitchNameMatch',
+              `Error fetching Twitch search for ${nameChunks[i].length} accounts`,
             ),
           );
         allSearches.push(search);
       }
     }
 
-    await Promise.all(allSearches).catch(() =>
-      this.logger.error(`Error fetching Twitch accounts`, 'TwitchNameMatch'),
-    );
+    await Promise.all(allSearches)
+      .then(() =>
+        this.logger.log(`Fetched ${allSearches.length} Twitch searches`),
+      )
+      .catch(() =>
+        this.logger.error(
+          `Error fetching ${allSearches.length} Twitch searches`,
+        ),
+      );
 
     const twitchAccountEntities: TwitchAccountEntity[] = [];
     const accountLinkEntities: AccountLinkEntity[] = [];
@@ -129,13 +142,11 @@ export class AppService {
         .then(() =>
           this.logger.log(
             `Saved ${uniqueTwitchAccountEntities.length} Twitch Account Entities`,
-            'TwitchNameMatch',
           ),
         )
         .catch(() =>
           this.logger.error(
             `Error saving ${uniqueTwitchAccountEntities.length} Twitch Account Entities`,
-            'TwitchNameMatch',
           ),
         );
     }
@@ -149,13 +160,11 @@ export class AppService {
         .then(() =>
           this.logger.log(
             `Saved ${uniqueDestinyProfileEntities.length} Destiny Profile Entities`,
-            'TwitchNameMatch',
           ),
         )
         .catch(() =>
           this.logger.error(
             `Error saving ${uniqueDestinyProfileEntities.length} Destiny Profile Entities`,
-            'TwitchNameMatch',
           ),
         );
     }
@@ -165,13 +174,11 @@ export class AppService {
         .then(() =>
           this.logger.log(
             `Saved ${uniqueAccountLinkEntity.length} Account Link Entities`,
-            'TwitchNameMatch',
           ),
         )
         .catch(() =>
           this.logger.error(
             `Error saving ${uniqueAccountLinkEntity.length} Account Link Entities`,
-            'TwitchNameMatch',
           ),
         );
     }

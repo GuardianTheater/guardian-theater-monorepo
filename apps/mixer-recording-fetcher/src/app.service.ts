@@ -14,33 +14,30 @@ export class AppService {
   constructor(
     private readonly logger: Logger,
     private readonly mixerService: MixerService,
-  ) {}
+  ) {
+    this.logger.setContext('MixerRecordingFetcher');
+  }
 
   @Interval(60000)
   handleInterval() {
-    this.fetchMixerRecordings();
+    this.fetchMixerRecordings().catch(() =>
+      this.logger.error(`Error running fetchMixerRecordings`),
+    );
   }
 
   async fetchMixerRecordings() {
     const dateCutOff = new Date(
       new Date().setDate(new Date().getDate() - this.daysOfHistory),
     );
-
-    const staleCheck = new Date(
-      new Date().setHours(new Date().getHours() - 1),
-    ).toISOString();
-
     const channelsToCheck = await getConnection()
       .createQueryBuilder(MixerChannelEntity, 'channel')
-      .where(
-        'channel.lastRecordingCheck < :staleCheck OR channel.lastRecordingCheck is null',
-        {
-          staleCheck,
-        },
-      )
       .orderBy('channel.lastRecordingCheck', 'ASC', 'NULLS FIRST')
       .take(100)
-      .getMany();
+      .getMany()
+      .catch(() => {
+        this.logger.error(`Error loading Mixer channels from database`);
+        return [] as MixerChannelEntity[];
+      });
 
     // TODO: Ignore channels attached to inactive Destiny Profiles
 
@@ -101,7 +98,6 @@ export class AppService {
             .catch(() => {
               this.logger.log(
                 `Error fetching exisiting recordings from database.`,
-                'MixerRecordingFetcher',
               );
               return [] as MixerRecordingEntity[];
             });
@@ -121,7 +117,6 @@ export class AppService {
         .catch(() =>
           this.logger.error(
             `Error fetching Mixer Recordings for ${channel.id}`,
-            'MixerRecordingFetcher',
           ),
         );
       recordingsPromises.push(promise);
@@ -130,12 +125,10 @@ export class AppService {
     if (recordingsPromises.length) {
       this.logger.log(
         `Fetching Mixer Recordings for ${recordingsPromises.length} channels.`,
-        'MixerRecordingFetcher',
       );
       await Promise.all(recordingsPromises);
       this.logger.log(
         `Fetched Mixer Recordings for ${recordingsPromises.length} channels.`,
-        'MixerRecordingFetcher',
       );
     }
 
@@ -157,13 +150,11 @@ export class AppService {
         .then(() =>
           this.logger.log(
             `Saved ${uniqueChannelEntities.length} Mixer Channels.`,
-            'MixerRecordingFetcher',
           ),
         )
         .catch(() =>
           this.logger.error(
             `Error saving ${uniqueChannelEntities.length} Mixer Channels.`,
-            'MixerRecordingFetcher',
           ),
         );
     }
@@ -173,13 +164,11 @@ export class AppService {
         .then(() =>
           this.logger.log(
             `Saved ${uniqueRecordingEntities.length} Mixer Recordings.`,
-            'MixerRecordingFetcher',
           ),
         )
         .catch(() =>
           this.logger.error(
             `Error saving ${uniqueRecordingEntities.length} Mixer Recordings.`,
-            'MixerRecordingFetcher',
           ),
         );
     }
@@ -193,20 +182,21 @@ export class AppService {
           .delete()
           .from(MixerRecordingEntity)
           .where('id = :id', { id: entity.id })
-          .execute();
+          .execute()
+          .catch(() =>
+            this.logger.error(`Error deleting Mixer Recording ${entity.id}`),
+          );
         deletes.push(deleteJob);
       }
       await Promise.all(deletes)
         .then(() =>
           this.logger.log(
             `Deleted ${uniqueRecordingEntitiesToDelete.length} recordings.`,
-            'MixerRecordingFetcher',
           ),
         )
         .catch(() =>
           this.logger.error(
             `Issue deleting ${uniqueRecordingEntitiesToDelete.length} recordings.`,
-            'MixerRecordingFetcher',
           ),
         );
     }

@@ -15,11 +15,13 @@ export class AppService {
   constructor(
     private readonly logger: Logger,
     private readonly twitchService: TwitchService,
-  ) {}
+  ) {
+    this.logger.setContext('TwitchVodFetcher');
+  }
 
   @Interval(60000)
   handleInterval() {
-    this.fetchTwitchVods();
+    this.fetchTwitchVods().catch(() => `Error running fetchTwitchVods`);
   }
 
   async fetchTwitchVods() {
@@ -27,21 +29,15 @@ export class AppService {
       new Date().setDate(new Date().getDate() - this.daysOfHistory),
     );
 
-    const staleCheck = new Date(
-      new Date().setHours(new Date().getHours() - 1),
-    ).toISOString();
-
     const accountsToCheck = await getConnection()
       .createQueryBuilder(TwitchAccountEntity, 'account')
-      .where(
-        'account.lastRecordingCheck < :staleCheck OR account.lastRecordingCheck is null',
-        {
-          staleCheck,
-        },
-      )
       .orderBy('account.lastRecordingCheck', 'ASC', 'NULLS FIRST')
       .take(100)
-      .getMany();
+      .getMany()
+      .catch(() => {
+        this.logger.error(`Error retrieving Twitch Accounts from database`);
+        return [] as TwitchAccountEntity[];
+      });
 
     // TODO: Ignore channels attached to inactive Destiny Profiles
 
@@ -94,10 +90,7 @@ export class AppService {
             .where('vods.user = :accountId', { accountId: account.id })
             .getMany()
             .catch(() => {
-              this.logger.log(
-                `Error fetching exisitng vods from database.`,
-                'TwitchVodFetcher',
-              );
+              this.logger.log(`Error fetching exisitng vods from database.`);
               return [] as TwitchVideoEntity[];
             });
           if (existingVods.length) {
@@ -112,10 +105,7 @@ export class AppService {
           }
         })
         .catch(() =>
-          this.logger.error(
-            `Error fetching Twitch Vods for ${account.id}`,
-            'TwitchVodFetcher',
-          ),
+          this.logger.error(`Error fetching Twitch Vods for ${account.id}`),
         );
       vodPromises.push(promise);
     }
@@ -123,13 +113,9 @@ export class AppService {
     if (vodPromises.length) {
       this.logger.log(
         `Fetching Twitch Vods for ${vodPromises.length} channels.`,
-        'TwitchVodFetcher',
       );
       await Promise.all(vodPromises);
-      this.logger.log(
-        `Fetched Twitch Vod for ${vodPromises.length} channels.`,
-        'TwitchVodFetcher',
-      );
+      this.logger.log(`Fetched Twitch Vod for ${vodPromises.length} channels.`);
     }
 
     const uniqueAccountEntities = uniqueEntityArray(accountsToSave, 'id');
@@ -144,30 +130,20 @@ export class AppService {
         .then(() =>
           this.logger.log(
             `Saved ${uniqueAccountEntities.length} Twitch Accounts.`,
-            'TwitchVodFetcher',
           ),
         )
         .catch(() =>
           this.logger.error(
             `Error saving ${uniqueAccountEntities.length} Twitch Accounts.`,
-            'TwitchVodFetcher',
           ),
         );
     }
 
     if (uniqueVodEntities.length) {
       await upsert(TwitchVideoEntity, uniqueVodEntities, 'id')
-        .then(() =>
-          this.logger.log(
-            `Saved ${uniqueVodEntities.length} VODs.`,
-            'TwitchVodFetcher',
-          ),
-        )
+        .then(() => this.logger.log(`Saved ${uniqueVodEntities.length} VODs.`))
         .catch(() =>
-          this.logger.error(
-            `Error saving ${uniqueVodEntities.length} VODs.`,
-            'TwitchVodFetcher',
-          ),
+          this.logger.error(`Error saving ${uniqueVodEntities.length} VODs.`),
         );
     }
 
@@ -180,20 +156,19 @@ export class AppService {
           .delete()
           .from(TwitchVideoEntity)
           .where('id = :id', { id: entity.id })
-          .execute();
+          .execute()
+          .catch(() =>
+            this.logger.error(`Error deleting Twitch Vod ${entity.id}`),
+          );
         deletes.push(deleteJob);
       }
       await Promise.all(deletes)
         .then(() =>
-          this.logger.log(
-            `Deleted ${uniqueVodEntitiesToDelete.length} vods.`,
-            'TwitchVodFetcher',
-          ),
+          this.logger.log(`Deleted ${uniqueVodEntitiesToDelete.length} vods.`),
         )
         .catch(() =>
           this.logger.error(
             `Issue deleting ${uniqueVodEntitiesToDelete.length} vods.`,
-            'TwitchVodFetcher',
           ),
         );
     }

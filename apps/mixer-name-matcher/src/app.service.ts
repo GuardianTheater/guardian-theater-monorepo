@@ -15,11 +15,15 @@ export class AppService {
   constructor(
     private readonly mixerService: MixerService,
     private readonly logger: Logger,
-  ) {}
+  ) {
+    this.logger.setContext('MixerNameMatcher');
+  }
 
   @Interval(60000)
   handleInterval() {
-    this.mixerNameMatch();
+    this.mixerNameMatch().catch(() =>
+      this.logger.error(`Error running mixerNameMatch`),
+    );
   }
 
   async mixerNameMatch() {
@@ -27,7 +31,11 @@ export class AppService {
       .createQueryBuilder(DestinyProfileEntity, 'profile')
       .where('profile.mixerNameMatchChecked is null')
       .take(100)
-      .getMany();
+      .getMany()
+      .catch(() => {
+        this.logger.error(`Error fetching Destiny Profiles from database.`);
+        return [] as DestinyProfileEntity[];
+      });
 
     const allSearches = [];
     const results: UserWithChannel[] = [];
@@ -48,7 +56,6 @@ export class AppService {
         .catch(() =>
           this.logger.error(
             `Error searching Mixer account for ${profile.displayName}`,
-            'MixerNameMatch',
           ),
         );
 
@@ -65,12 +72,15 @@ export class AppService {
       allSearches.push(search);
     }
 
-    await Promise.all(allSearches).catch(() =>
-      this.logger.error(
-        `Error while searching for Mixer name matches`,
-        'MixerNameMatch',
-      ),
-    );
+    await Promise.all(allSearches)
+      .then(() =>
+        this.logger.log(`Fetched ${allSearches.length} Mixer search results.`),
+      )
+      .catch(() =>
+        this.logger.error(
+          `Error while fetching ${allSearches.length} Mixer search results`,
+        ),
+      );
 
     for (let i = 0; i < profileEntities.length; i++) {
       const destinyProfileEntity = profileEntities[i];
@@ -131,13 +141,11 @@ export class AppService {
         .then(() =>
           this.logger.log(
             `Saved ${uniqueMixerChannelEntities.length} Mixer Channel Entities`,
-            'MixerNameMatch',
           ),
         )
         .catch(() =>
           this.logger.error(
             `Error saving ${uniqueMixerChannelEntities.length} Mixer Channel Entities`,
-            'MixerNameMatch',
           ),
         );
     }
@@ -147,13 +155,11 @@ export class AppService {
         .then(() =>
           this.logger.log(
             `Saved ${uniqueMixerAccountEntities.length} Mixer Account Entities`,
-            'MixerNameMatch',
           ),
         )
         .catch(() =>
           this.logger.error(
             `Error saving ${uniqueMixerAccountEntities} Mixer Account Entities`,
-            'MixerNameMatch',
           ),
         );
     }
@@ -167,13 +173,11 @@ export class AppService {
         .then(() =>
           this.logger.log(
             `Saved ${uniqueDestinyProfileEntities.length} Destiny Profile Entities`,
-            'MixerNameMatch',
           ),
         )
         .catch(() =>
           this.logger.error(
             `Error saving ${uniqueDestinyProfileEntities.length} Destiny Profile Entities`,
-            'MixerNameMatch',
           ),
         );
     }
@@ -183,13 +187,11 @@ export class AppService {
         .then(() =>
           this.logger.log(
             `Saved ${uniqueAccountLinkEntities.length} Account Link Entities`,
-            'MixerNameMatch',
           ),
         )
         .catch(() =>
           this.logger.error(
             `Error saving ${uniqueAccountLinkEntities.length} Account Link Entities`,
-            'MixerNameMatch',
           ),
         );
     }
