@@ -107,7 +107,7 @@ export class AppService {
               })
               .getMany()
               .catch(() => {
-                this.logger.log(
+                this.logger.error(
                   `Error fetching exisitng clips from database.`,
                   'XboxClipFetcher',
                 );
@@ -115,8 +115,8 @@ export class AppService {
               });
             if (existingClips.length) {
               const newClipIds = new Set(toSave.map(clip => clip.gameClipId));
-              for (let j = 0; j < xboxAccount.clips.length; j++) {
-                const existingClip = xboxAccount.clips[j];
+              for (let j = 0; j < existingClips.length; j++) {
+                const existingClip = existingClips[j];
                 if (newClipIds.has(existingClip.gameClipId)) {
                   continue;
                 }
@@ -157,10 +157,10 @@ export class AppService {
       'gameClipId',
     );
 
-    // const uniqueXboxClipEntitiesToDelete = uniqueEntityArray(
-    //   xboxClipEntitiesToDelete,
-    //   'gameClipId',
-    // );
+    const uniqueXboxClipEntitiesToDelete: XboxClipEntity[] = uniqueEntityArray(
+      xboxClipEntitiesToDelete,
+      'gameClipId',
+    );
 
     if (uniqueXboxAccountEntities.length) {
       await upsert(XboxAccountEntity, uniqueXboxAccountEntities, 'gamertag')
@@ -194,6 +194,31 @@ export class AppService {
         );
     }
 
-    // TODO: Delete contents of uniqueXboxClipEntitiesToDelete
+    if (uniqueXboxClipEntitiesToDelete.length) {
+      const deletes = [];
+      for (let i = 0; i < uniqueXboxClipEntitiesToDelete.length; i++) {
+        const entity = uniqueXboxClipEntitiesToDelete[i];
+        const deleteJob = getConnection()
+          .createQueryBuilder()
+          .delete()
+          .from(XboxClipEntity)
+          .where('gameClipId = :gameClipId', { gameClipId: entity.gameClipId })
+          .execute();
+        deletes.push(deleteJob);
+      }
+      await Promise.all(deletes)
+        .then(() =>
+          this.logger.log(
+            `Deleted ${uniqueXboxClipEntitiesToDelete.length} clips.`,
+            'XboxClipFetcher',
+          ),
+        )
+        .catch(() =>
+          this.logger.error(
+            `Issue deleting ${uniqueXboxClipEntitiesToDelete.length} clips`,
+            'XboxClipFetcher',
+          ),
+        );
+    }
   }
 }

@@ -165,8 +165,22 @@ export class AppService {
         membershipType: entry.instance.membershipType,
         period: entry.instance.period,
         team: entry.team,
-        entries: [],
+        videos: [],
       };
+      const encounteredVideos: {
+        displayName: string;
+        membershipId: string;
+        membershipType: number;
+        team: number;
+        linkName: string;
+        linkId?: string | number;
+        type: string;
+        url: string;
+        embedUrl: string;
+        thumbnail: string;
+        title?: string;
+        offset?: string;
+      }[] = [];
       for (let j = 0; j < entry.instance.entries.length; j++) {
         const instanceEntryResponse = entry.instance.entries[j];
         const entryProfile = instanceEntryResponse.profile;
@@ -175,13 +189,7 @@ export class AppService {
           membershipId: entryProfile.membershipId,
           membershipType: entryProfile.membershipType,
           team: instanceEntryResponse.team,
-          videos: [],
         };
-        const encounteredVideos: {
-          type: string;
-          url: string;
-          thumbnail: string;
-        }[] = [];
         const entryStartTime = new Date(
           JSON.parse(instanceEntryResponse.timePlayedRange)[0],
         );
@@ -200,12 +208,21 @@ export class AppService {
         }
         for (let k = 0; k < accountLinks.length; k++) {
           const accountLink = accountLinks[k];
+          const linkInfo = {
+            ...instanceEntry,
+            type: accountLink.accountType,
+            linkType: accountLink.linkType,
+          };
           if (accountLink.xboxAccount) {
+            const entryLink = {
+              ...linkInfo,
+              linkName: accountLink.xboxAccount.gamertag,
+            };
             const gamertag = accountLink.xboxAccount.gamertag;
             for (let l = 0; l < accountLink.xboxAccount.clips.length; l++) {
               const xboxClip = accountLink.xboxAccount.clips[l];
               const video = {
-                type: 'xbox',
+                ...entryLink,
                 url: `https://xboxrecord.us/gamer/${encodeURIComponent(
                   gamertag,
                 )}/clip/${xboxClip.gameClipId}/scid/${xboxClip.gameClipId}`,
@@ -216,6 +233,11 @@ export class AppService {
             }
           }
           if (accountLink.twitchAccount) {
+            const entryLink = {
+              ...linkInfo,
+              linkName: accountLink.twitchAccount.displayName,
+              linkId: accountLink.twitchAccount.id,
+            };
             for (let l = 0; l < accountLink.twitchAccount.videos.length; l++) {
               const twitchVideo = accountLink.twitchAccount.videos[l];
               const videoStartTime = new Date(
@@ -229,18 +251,15 @@ export class AppService {
               }
               const twitchOffset = convertSecondsToTwitchDuration(offset);
               const video = {
-                type: 'twitch',
-                url: `${twitchVideo.url}`,
+                ...entryLink,
+                url: `${twitchVideo.url}?t=${twitchOffset}`,
+                embedUrl: `//player.twitch.tv/?video=${twitchVideo.id}&time=${twitchOffset}`,
                 thumbnail: twitchVideo.thumbnailUrl
                   .replace('%{width}', '960')
                   .replace('%{height}', '540'),
                 title: twitchVideo.title,
-                embedUrl: `//player.twitch.tv/?video=${twitchVideo.id}&time=${twitchOffset}`,
                 offset: twitchOffset,
               };
-              if (twitchOffset) {
-                video.url += `?t=${twitchOffset}`;
-              }
               encounteredVideos.push(video);
             }
           }
@@ -250,6 +269,11 @@ export class AppService {
               l < accountLink.mixerAccount.channel.recordings.length;
               l++
             ) {
+              const entryLink = {
+                ...linkInfo,
+                linkName: accountLink.mixerAccount.username,
+                linkId: accountLink.mixerAccount.id,
+              };
               const mixerRecording =
                 accountLink.mixerAccount.channel.recordings[l];
               const videoStartTime = new Date(
@@ -263,41 +287,33 @@ export class AppService {
               }
               const mixerOffset = convertSecondsToTwitchDuration(offset);
               const video = {
-                type: 'mixer',
-                url: `https://mixer.com/${accountLink.mixerAccount?.channel?.token}?vod=${mixerRecording.id}`,
+                ...entryLink,
+                url: `https://mixer.com/${accountLink.mixerAccount?.channel?.token}?vod=${mixerRecording.id}&t=${mixerOffset}`,
                 thumbnail: mixerRecording.thumbnail,
                 title: mixerRecording.title,
                 embedUrl: `//mixer.com/embed/player/${accountLink.mixerAccount?.channel?.token}?vod=${mixerRecording.id}&t=${mixerOffset}`,
                 offset: mixerOffset,
               };
-              if (mixerOffset) {
-                video.url += `&t=${mixerOffset}`;
-              }
               encounteredVideos.push(video);
             }
           }
         }
-
-        const uniqueUrls = Array.from(
-          new Set(encounteredVideos.map(video => video.url)),
-        );
-        instanceEntry.videos = [];
-        for (let k = 0; k < uniqueUrls.length; k++) {
-          const uniqueUrl = uniqueUrls[k];
-          for (let l = 0; l < encounteredVideos.length; l++) {
-            const video = encounteredVideos[l];
-            if (video.url === uniqueUrl) {
-              instanceEntry.videos.push(video);
-              break;
-            }
+      }
+      const uniqueUrls = Array.from(
+        new Set(encounteredVideos.map(video => video.url)),
+      );
+      instance.videos = [];
+      for (let k = 0; k < uniqueUrls.length; k++) {
+        const uniqueUrl = uniqueUrls[k];
+        for (let l = 0; l < encounteredVideos.length; l++) {
+          const video = encounteredVideos[l];
+          if (video.url === uniqueUrl) {
+            instance.videos.push(video);
+            break;
           }
         }
-
-        if (instanceEntry.videos.length) {
-          instance.entries.push(instanceEntry);
-        }
       }
-      if (instance.entries.length) {
+      if (instance.videos.length) {
         instances.push(instance);
       }
     }

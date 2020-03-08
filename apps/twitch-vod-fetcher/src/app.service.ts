@@ -47,6 +47,7 @@ export class AppService {
 
     const accountsToSave: TwitchAccountEntity[] = [];
     const vodsToSave: TwitchVideoEntity[] = [];
+    const vodsToDelete: TwitchVideoEntity[] = [];
 
     const vodPromises: Promise<any>[] = [];
 
@@ -64,6 +65,7 @@ export class AppService {
         .getVideos(account.id)
         .then(res => {
           const vods = res?.data?.data;
+          const toSave: TwitchVideoEntity[] = [];
           for (let j = 0; j < vods.length; j++) {
             const vod = vods[j];
             if (new Date(vod.created_at) < dateCutOff) {
@@ -81,7 +83,32 @@ export class AppService {
                   convertTwitchDurationToSeconds(vod.duration),
               ),
             ).toISOString()}]`;
+            toSave.push(vodEntity);
             vodsToSave.push(vodEntity);
+          }
+          return toSave;
+        })
+        .then(async toSave => {
+          const existingVods = await getConnection()
+            .createQueryBuilder(TwitchVideoEntity, 'vods')
+            .where('vods.user = :accountId', { accountId: account.id })
+            .getMany()
+            .catch(() => {
+              this.logger.log(
+                `Error fetching exisitng vods from database.`,
+                'TwitchVodFetcher',
+              );
+              return [] as TwitchVideoEntity[];
+            });
+          if (existingVods.length) {
+            const newVodIds = new Set(toSave.map(vod => vod.id));
+            for (let j = 0; j < existingVods.length; j++) {
+              const existingVod = existingVods[j];
+              if (newVodIds.has(existingVod.id)) {
+                continue;
+              }
+              vodsToDelete.push(existingVod);
+            }
           }
         })
         .catch(() =>
@@ -107,6 +134,10 @@ export class AppService {
 
     const uniqueAccountEntities = uniqueEntityArray(accountsToSave, 'id');
     const uniqueVodEntities = uniqueEntityArray(vodsToSave, 'id');
+    const uniqueVodEntitiesToDelete: TwitchVideoEntity[] = uniqueEntityArray(
+      vodsToDelete,
+      'id',
+    );
 
     if (uniqueAccountEntities.length) {
       await upsert(TwitchAccountEntity, uniqueAccountEntities, 'id')
@@ -135,6 +166,33 @@ export class AppService {
         .catch(() =>
           this.logger.error(
             `Error saving ${uniqueVodEntities.length} VODs.`,
+            'TwitchVodFetcher',
+          ),
+        );
+    }
+
+    if (uniqueVodEntitiesToDelete.length) {
+      const deletes = [];
+      for (let i = 0; i < uniqueVodEntitiesToDelete.length; i++) {
+        const entity = uniqueVodEntitiesToDelete[i];
+        const deleteJob = getConnection()
+          .createQueryBuilder()
+          .delete()
+          .from(TwitchVideoEntity)
+          .where('id = :id', { id: entity.id })
+          .execute();
+        deletes.push(deleteJob);
+      }
+      await Promise.all(deletes)
+        .then(() =>
+          this.logger.log(
+            `Deleted ${uniqueVodEntitiesToDelete.length} vods.`,
+            'TwitchVodFetcher',
+          ),
+        )
+        .catch(() =>
+          this.logger.error(
+            `Issue deleting ${uniqueVodEntitiesToDelete.length} vods.`,
             'TwitchVodFetcher',
           ),
         );

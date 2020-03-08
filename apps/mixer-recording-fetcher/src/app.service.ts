@@ -46,6 +46,7 @@ export class AppService {
 
     const channelsToSave: MixerChannelEntity[] = [];
     const recordingsToSave: MixerRecordingEntity[] = [];
+    const recordingsToDelete: MixerRecordingEntity[] = [];
 
     const recordingsPromises: Promise<any>[] = [];
 
@@ -62,6 +63,7 @@ export class AppService {
         .getChannelRecordings(channel.id)
         .then(res => {
           const recordings = res.data;
+          const toSave: MixerRecordingEntity[] = [];
           for (let j = 0; j < recordings.length; j++) {
             const recording = recordings[j];
             if (new Date(recording.createdAt) < dateCutOff) {
@@ -84,8 +86,34 @@ export class AppService {
                 recordingEntity.thumbnail = `${vod.baseUrl}source.png`;
               }
             }
-
+            toSave.push(recordingEntity);
             recordingsToSave.push(recordingEntity);
+            return toSave;
+          }
+        })
+        .then(async toSave => {
+          const existingRecordings = await getConnection()
+            .createQueryBuilder(MixerRecordingEntity, 'recordings')
+            .where('recordings.channel = :channelId', {
+              channelId: channel.id,
+            })
+            .getMany()
+            .catch(() => {
+              this.logger.log(
+                `Error fetching exisitnig recordings from database.`,
+                'MixerRecordingFetcher',
+              );
+              return [] as MixerRecordingEntity[];
+            });
+          if (existingRecordings.length) {
+            const newRecordingIds = new Set(toSave.map(vod => vod.id));
+            for (let j = 0; j < existingRecordings.length; j++) {
+              const existingRecording = existingRecordings[j];
+              if (newRecordingIds.has(existingRecording.id)) {
+                continue;
+              }
+              recordingsToDelete.push(existingRecording);
+            }
           }
         })
         .catch(() =>
@@ -109,8 +137,18 @@ export class AppService {
       );
     }
 
-    const uniqueChannelEntities = uniqueEntityArray(channelsToSave, 'id');
-    const uniqueRecordingEntities = uniqueEntityArray(recordingsToSave, 'id');
+    const uniqueChannelEntities: MixerChannelEntity[] = uniqueEntityArray(
+      channelsToSave,
+      'id',
+    );
+    const uniqueRecordingEntities: MixerRecordingEntity[] = uniqueEntityArray(
+      recordingsToSave,
+      'id',
+    );
+    const uniqueRecordingEntitiesToDelete: MixerRecordingEntity[] = uniqueEntityArray(
+      recordingsToDelete,
+      'id',
+    );
 
     if (uniqueChannelEntities.length) {
       await upsert(MixerChannelEntity, uniqueChannelEntities, 'id')
@@ -139,6 +177,33 @@ export class AppService {
         .catch(() =>
           this.logger.error(
             `Error saving ${uniqueRecordingEntities.length} Mixer Recordings.`,
+            'MixerRecordingFetcher',
+          ),
+        );
+    }
+
+    if (uniqueRecordingEntitiesToDelete.length) {
+      const deletes = [];
+      for (let i = 0; i < uniqueRecordingEntitiesToDelete.length; i++) {
+        const entity = uniqueRecordingEntitiesToDelete[i];
+        const deleteJob = getConnection()
+          .createQueryBuilder()
+          .delete()
+          .from(MixerRecordingEntity)
+          .where('id = :id', { id: entity.id })
+          .execute();
+        deletes.push(deleteJob);
+      }
+      await Promise.all(deletes)
+        .then(() =>
+          this.logger.log(
+            `Deleted ${uniqueRecordingEntitiesToDelete.length} recordings.`,
+            'MixerRecordingFetcher',
+          ),
+        )
+        .catch(() =>
+          this.logger.error(
+            `Issue deleting ${uniqueRecordingEntitiesToDelete.length} recordings.`,
             'MixerRecordingFetcher',
           ),
         );

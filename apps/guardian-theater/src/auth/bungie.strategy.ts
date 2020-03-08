@@ -1,6 +1,6 @@
 import { Injectable } from '@nestjs/common';
 import { PassportStrategy } from '@nestjs/passport';
-import { Strategy } from 'passport-oauth2';
+import { Strategy } from 'passport-bungie-oauth2';
 import { AuthService } from './auth.service';
 
 @Injectable()
@@ -19,9 +19,11 @@ export class BungieStrategy extends PassportStrategy(Strategy, 'bungie') {
     profile,
     done: Function,
   ) {
+    console.log(accessToken, refreshToken, profile);
+    this.userProfile(accessToken, res => console.log(res));
     try {
       const jwt: string = await this.authService.validateOAuthLogin(
-        profile.id,
+        profile,
         'bungie',
       );
       const user = {

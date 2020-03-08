@@ -10,7 +10,7 @@ export class AuthService {
   }
 
   async validateOAuthLogin(
-    thirdPartyId: string,
+    profile: { membershipId: string },
     provider: 'bungie' | '',
   ): Promise<string> {
     try {
@@ -22,7 +22,7 @@ export class AuthService {
       // user = await this.usersService.registerOAuthUser(thirdPartyId, provider);
 
       const payload = {
-        thirdPartyId,
+        membershipId: profile.membershipId,
         provider,
       };
 
