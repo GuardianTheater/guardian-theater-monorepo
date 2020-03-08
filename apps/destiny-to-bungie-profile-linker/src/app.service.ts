@@ -23,8 +23,10 @@ export class AppService {
   async linkBungieAccounts() {
     const profilesToCheck = await getConnection()
       .createQueryBuilder(DestinyProfileEntity, 'profile')
-      .where('profile.bnetProfileChecked is null')
-      .limit(100)
+      .where(
+        'profile.bnetProfileChecked is null AND profile.membershipType > 0',
+      )
+      .take(100)
       .getMany();
 
     const requests = [];

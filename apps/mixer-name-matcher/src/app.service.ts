@@ -26,7 +26,7 @@ export class AppService {
     const loadedProfiles = await getConnection()
       .createQueryBuilder(DestinyProfileEntity, 'profile')
       .where('profile.mixerNameMatchChecked is null')
-      .limit(100)
+      .take(100)
       .getMany();
 
     const allSearches = [];

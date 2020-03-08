@@ -1,5 +1,4 @@
 import { Entity, PrimaryColumn, OneToMany, Column } from 'typeorm';
-import { MixerAccountEntity } from './mixer-account.entity';
 import { MixerRecordingEntity } from './mixer-recording.entity';
 
 @Entity()

@@ -34,14 +34,14 @@ export class AppService {
 
     const accountsToCheck = await getConnection()
       .createQueryBuilder(XboxAccountEntity, 'xboxAccount')
-      .orderBy('xboxAccount.lastClipCheck')
       .where(
         'xboxAccount.lastClipCheck < :staleCheck OR xboxAccount.lastClipCheck is null',
         {
           staleCheck,
         },
       )
-      .limit(100)
+      .orderBy('xboxAccount.lastClipCheck', 'ASC', 'NULLS FIRST')
+      .take(100)
       .getMany()
       .catch(() => {
         this.logger.error(

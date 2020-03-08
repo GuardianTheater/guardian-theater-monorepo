@@ -41,17 +41,31 @@ export class AppService {
       new Date().setMinutes(new Date().getMinutes() - 5),
     ).toISOString();
 
+    const profilesWithVideos = getConnection()
+      .createQueryBuilder(DestinyProfileEntity, 'profile')
+      .innerJoin('profile.accountLinks', 'accountLinks')
+      .innerJoin('accountLinks.twitchAccount', 'twitchAccount')
+      .innerJoin('twitchAccount.videos', 'videos')
+      .select('profile.membershipId');
+
+    const profilesWithRecordings = getConnection()
+      .createQueryBuilder(DestinyProfileEntity, 'profile')
+      .innerJoin('profile.accountLinks', 'accountLinks')
+      .innerJoin('accountLinks.mixerAccount', 'mixerAccount')
+      .innerJoin('mixerAccount.channel', 'channel')
+      .innerJoin('channel.recordings', 'recordings')
+      .select('profile.membershipId');
+
     const usersToCheck = await getConnection()
       .createQueryBuilder(DestinyProfileEntity, 'profile')
       .where(
-        'profile.pageLastVisited is not null AND profile.pageLastVisited > :staleVisitor AND (profile.activitiesLastChecked is null OR profile.activitiesLastChecked < :staleCheck)',
+        `(profile.pageLastVisited is not null AND profile.pageLastVisited > :staleVisitor) OR profile.membershipId IN (${profilesWithVideos.getQuery()}) OR profile.membershipId IN (${profilesWithRecordings.getQuery()})`,
         {
           staleVisitor,
-          staleCheck,
         },
       )
-      .orderBy('profile.activitiesLastChecked')
-      .limit(10)
+      .orderBy('profile.activitiesLastChecked', 'ASC', 'NULLS FIRST')
+      .take(5)
       .getMany();
 
     const existingActivities: PgcrEntryEntity[] = [];

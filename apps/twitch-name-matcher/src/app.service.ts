@@ -25,7 +25,7 @@ export class AppService {
     const loadedProfiles = await getConnection()
       .createQueryBuilder(DestinyProfileEntity, 'profile')
       .where('profile.twitchNameMatchChecked is null')
-      .limit(1000)
+      .take(1000)
       .getMany();
 
     const uniqueNames = Array.from(

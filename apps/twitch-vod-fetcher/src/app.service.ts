@@ -33,14 +33,14 @@ export class AppService {
 
     const accountsToCheck = await getConnection()
       .createQueryBuilder(TwitchAccountEntity, 'account')
-      .orderBy('account.lastRecordingCheck')
       .where(
         'account.lastRecordingCheck < :staleCheck OR account.lastRecordingCheck is null',
         {
           staleCheck,
         },
       )
-      .limit(100)
+      .orderBy('account.lastRecordingCheck', 'ASC', 'NULLS FIRST')
+      .take(100)
       .getMany();
 
     // TODO: Ignore channels attached to inactive Destiny Profiles

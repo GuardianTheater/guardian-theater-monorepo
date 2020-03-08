@@ -35,7 +35,7 @@ export class AppService {
       .where(
         'profile.membershipType = 1 AND profile.xboxNameMatchChecked is null',
       )
-      .limit(1000)
+      .take(1000)
       .getMany();
 
     const destinyProfileEntities: DestinyProfileEntity[] = [];

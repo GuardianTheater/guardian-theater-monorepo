@@ -28,7 +28,7 @@ export class AppService {
       .createQueryBuilder(BungieProfileEntity, 'profile')
       .leftJoinAndSelect('profile.profiles', 'profiles')
       .where('profile.twitchPartnershipMatchChecked is null')
-      .limit(100)
+      .take(100)
       .getMany();
 
     const requests = [];

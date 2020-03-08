@@ -32,14 +32,14 @@ export class AppService {
 
     const channelsToCheck = await getConnection()
       .createQueryBuilder(MixerChannelEntity, 'channel')
-      .orderBy('channel.lastRecordingCheck')
       .where(
         'channel.lastRecordingCheck < :staleCheck OR channel.lastRecordingCheck is null',
         {
           staleCheck,
         },
       )
-      .limit(100)
+      .orderBy('channel.lastRecordingCheck', 'ASC', 'NULLS FIRST')
+      .take(100)
       .getMany();
 
     // TODO: Ignore channels attached to inactive Destiny Profiles
@@ -67,7 +67,7 @@ export class AppService {
           for (let j = 0; j < recordings.length; j++) {
             const recording = recordings[j];
             if (new Date(recording.createdAt) < dateCutOff) {
-              break;
+              continue;
             }
             const recordingEntity = new MixerRecordingEntity();
             recordingEntity.channel = channel;
@@ -88,8 +88,8 @@ export class AppService {
             }
             toSave.push(recordingEntity);
             recordingsToSave.push(recordingEntity);
-            return toSave;
           }
+          return toSave;
         })
         .then(async toSave => {
           const existingRecordings = await getConnection()
@@ -100,13 +100,15 @@ export class AppService {
             .getMany()
             .catch(() => {
               this.logger.log(
-                `Error fetching exisitnig recordings from database.`,
+                `Error fetching exisiting recordings from database.`,
                 'MixerRecordingFetcher',
               );
               return [] as MixerRecordingEntity[];
             });
           if (existingRecordings.length) {
-            const newRecordingIds = new Set(toSave.map(vod => vod.id));
+            const newRecordingIds = new Set(
+              toSave.map(recording => recording.id),
+            );
             for (let j = 0; j < existingRecordings.length; j++) {
               const existingRecording = existingRecordings[j];
               if (newRecordingIds.has(existingRecording.id)) {
