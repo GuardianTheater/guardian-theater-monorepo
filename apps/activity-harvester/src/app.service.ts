@@ -33,33 +33,33 @@ export class AppService {
       new Date().setDate(new Date().getDate() - 7),
     ).toISOString();
 
-    const profilesWithVideos = getConnection()
-      .createQueryBuilder(DestinyProfileEntity, 'profile')
-      .innerJoin('profile.accountLinks', 'accountLinks')
-      .innerJoin('accountLinks.twitchAccount', 'twitchAccount')
-      .innerJoin('twitchAccount.videos', 'videos')
-      .select('profile.membershipId');
+    // const profilesWithVideos = getConnection()
+    //   .createQueryBuilder(DestinyProfileEntity, 'profile')
+    //   .innerJoin('profile.accountLinks', 'accountLinks')
+    //   .innerJoin('accountLinks.twitchAccount', 'twitchAccount')
+    //   .innerJoin('twitchAccount.videos', 'videos')
+    //   .select('profile.membershipId');
 
-    const profilesWithRecordings = getConnection()
-      .createQueryBuilder(DestinyProfileEntity, 'profile')
-      .innerJoin('profile.accountLinks', 'accountLinks')
-      .innerJoin('accountLinks.mixerAccount', 'mixerAccount')
-      .innerJoin('mixerAccount.channel', 'channel')
-      .innerJoin('channel.recordings', 'recordings')
-      .select('profile.membershipId');
+    // const profilesWithRecordings = getConnection()
+    //   .createQueryBuilder(DestinyProfileEntity, 'profile')
+    //   .innerJoin('profile.accountLinks', 'accountLinks')
+    //   .innerJoin('accountLinks.mixerAccount', 'mixerAccount')
+    //   .innerJoin('mixerAccount.channel', 'channel')
+    //   .innerJoin('channel.recordings', 'recordings')
+    //   .select('profile.membershipId');
 
     const profilesToHarvest = await getConnection()
       .createQueryBuilder(DestinyProfileEntity, 'profile')
       .where(
-        `(profile.pageLastVisited is not null AND profile.pageLastVisited > :staleVisitor) OR profile.membershipId IN (${profilesWithVideos.getQuery()}) OR profile.membershipId IN (${profilesWithRecordings.getQuery()})`,
-        // `profile.pageLastVisited is not null AND profile.pageLastVisited > :staleVisitor`,
+        // `(profile.pageLastVisited is not null AND profile.pageLastVisited > :staleVisitor) OR (profile.activitiesLastChecked is null AND (profile.membershipId IN (${profilesWithVideos.getQuery()}) OR profile.membershipId IN (${profilesWithRecordings.getQuery()})))`,
+        `profile.activitiesLastChecked is null OR (profile.pageLastVisited is not null AND profile.pageLastVisited > :staleVisitor)`,
         {
           staleVisitor,
         },
       )
       .orderBy('profile.activitiesLastChecked', 'ASC', 'NULLS FIRST')
       .addOrderBy('profile.pageLastVisited', 'DESC', 'NULLS LAST')
-      .take(10)
+      .take(5)
       .getMany()
       .catch(e => {
         this.logger.error(e);
@@ -226,7 +226,6 @@ export class AppService {
           pgcrEntity.membershipType =
             pgcr.Response.activityDetails.membershipType;
           pgcrEntity.period = pgcr.Response.period;
-          pgcrEntity.mode = pgcr.Response.activityDetails.mode;
 
           pgcrEntities.push(pgcrEntity);
 
