@@ -57,9 +57,9 @@ export class AppService {
           staleVisitor,
         },
       )
-      .orderBy('profile.pageLastVisited', 'DESC', 'NULLS LAST')
       .orderBy('profile.activitiesLastChecked', 'ASC', 'NULLS FIRST')
-      .take(25)
+      .addOrderBy('profile.pageLastVisited', 'DESC', 'NULLS LAST')
+      .take(10)
       .getMany()
       .catch(e => {
         this.logger.error(e);
