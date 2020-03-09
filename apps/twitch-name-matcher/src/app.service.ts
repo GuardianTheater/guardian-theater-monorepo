@@ -28,7 +28,7 @@ export class AppService {
   async twitchNameMatch() {
     const loadedProfiles = await getConnection()
       .createQueryBuilder(DestinyProfileEntity, 'profile')
-      .where('profile.twitchNameMatchChecked is null')
+      .orderBy('profile.twitchNameMatchChecked', 'ASC', 'NULLS FIRST')
       .take(1000)
       .getMany()
       .catch(() => {

@@ -58,7 +58,7 @@ export class AppService {
         },
       )
       .orderBy('profile.activitiesLastChecked', 'ASC', 'NULLS FIRST')
-      .addOrderBy('profile.pageLastVisited', 'DESC', 'NULLS LAST')
+      .addOrderBy('profile.pageLastVisited', 'ASC', 'NULLS LAST')
       .take(5)
       .getMany()
       .catch(e => {

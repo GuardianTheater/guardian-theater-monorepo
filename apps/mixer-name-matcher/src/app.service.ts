@@ -29,7 +29,7 @@ export class AppService {
   async mixerNameMatch() {
     const loadedProfiles = await getConnection()
       .createQueryBuilder(DestinyProfileEntity, 'profile')
-      .where('profile.mixerNameMatchChecked is null')
+      .orderBy('profile.mixerNameMatchChecked', 'ASC', 'NULLS FIRST')
       .take(200)
       .getMany()
       .catch(() => {
@@ -87,8 +87,8 @@ export class AppService {
       for (let j = 0; j < results.length; j++) {
         const result = results[j];
         if (
-          result?.username ===
-          destinyProfileEntity.displayName.replace(/\s/g, '_')
+          result?.username.toLowerCase() ===
+          destinyProfileEntity.displayName.replace(/\s/g, '_').toLowerCase()
         ) {
           const mixerAccountEntity = new MixerAccountEntity();
           mixerAccountEntity.username = result.username;

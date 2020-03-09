@@ -58,6 +58,8 @@ export class AppService {
       )
         .then(linkedProfiles => {
           profile.bnetProfileChecked = new Date().toISOString();
+          // profile.bnetProfileCheckError = false;
+
           if (linkedProfiles.Response.bnetMembership) {
             const bnetProfile = new BungieProfileEntity();
             bnetProfile.membershipId =
@@ -85,11 +87,15 @@ export class AppService {
             }
           }
         })
-        .catch(() =>
+        .catch(() => {
+          // profile.bnetProfileChecked = new Date().toISOString();
+          // profile.bnetProfileCheckError = true;
+          // destinyProfiles.push(profile);
+
           this.logger.error(
             `Error fetching linked profiles for ${profile.membershipType}-${profile.membershipId}`,
-          ),
-        );
+          );
+        });
       requests.push(request);
     }
 
