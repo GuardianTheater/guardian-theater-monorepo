@@ -20,11 +20,11 @@ export class AppController {
     return this.appService.getInfoAboutMembershipId(membershipId);
   }
 
-  @Get('streamervsstreamer')
-  @CacheTTL(30)
-  getStreamerVsStreamer() {
-    return this.appService.getStreamerVsStreamerInstances();
-  }
+  // @Get('streamervsstreamer')
+  // @CacheTTL(300)
+  // getStreamerVsStreamer() {
+  //   return this.appService.getStreamerVsStreamerInstances();
+  // }
 
   @Get('encounteredClips/:membershipType/:membershipId')
   @CacheTTL(30)

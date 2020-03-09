@@ -16,6 +16,7 @@ export class AppService {
     private readonly bungieService: BungieService,
     private readonly logger: Logger,
   ) {}
+
   async getAllEncounteredVideos(
     membershipType: BungieMembershipType,
     destinyMembershipId: string,
@@ -464,8 +465,11 @@ export class AppService {
 
     const pgcrs = getConnection()
       .createQueryBuilder(PgcrEntity, 'pgcr')
-      .innerJoinAndSelect('pgcr.entries', 'entries')
-      .innerJoinAndSelect('entries.profile', 'destinyProfile')
+      .where(
+        `(pgcr.instanceId IN (${pgcrsWithVideos17.getQuery()}) OR pgcr.instanceId IN (${pgcrsWithRecordings17.getQuery()}) OR pgcr.instanceId IN (${pgcrsWithLinkedVideos17.getQuery()}) OR pgcr.instanceId IN (${pgcrsWithLinkedRecordings17.getQuery()})) AND (pgcr.instanceId IN (${pgcrsWithVideos18.getQuery()}) OR pgcr.instanceId IN (${pgcrsWithRecordings18.getQuery()}) OR pgcr.instanceId IN (${pgcrsWithLinkedVideos18.getQuery()}) OR pgcr.instanceId IN (${pgcrsWithLinkedRecordings18.getQuery()}))`,
+      )
+      .leftJoinAndSelect('pgcr.entries', 'entries')
+      .leftJoinAndSelect('entries.profile', 'destinyProfile')
       .leftJoinAndSelect('destinyProfile.accountLinks', 'accountLinks')
       .leftJoinAndSelect('accountLinks.twitchAccount', 'twitchAccount')
       .leftJoinAndSelect(
@@ -509,15 +513,33 @@ export class AppService {
         'linkedRecordings',
         'entries.timePlayedRange && linkedRecordings.durationRange',
       )
-      .where(
-        `(pgcr.instanceId IN (${pgcrsWithVideos17.getQuery()}) OR pgcr.instanceId IN (${pgcrsWithRecordings17.getQuery()}) OR pgcr.instanceId IN (${pgcrsWithLinkedVideos17.getQuery()}) OR pgcr.instanceId IN (${pgcrsWithLinkedRecordings17.getQuery()})) AND (pgcr.instanceId IN (${pgcrsWithVideos18.getQuery()}) OR pgcr.instanceId IN (${pgcrsWithRecordings18.getQuery()}) OR pgcr.instanceId IN (${pgcrsWithLinkedVideos18.getQuery()}) OR pgcr.instanceId IN (${pgcrsWithLinkedRecordings18.getQuery()}))`,
-      )
       .orderBy('pgcr.period', 'DESC')
       .take(21)
       .getMany();
 
     const rawInstances = await pgcrs;
-    const instances = [];
+    const instances: {
+      instanceId: string;
+      activityHash: number;
+      directorActivityHash: number;
+      membershipType: BungieMembershipType;
+      period: string;
+      team: number;
+      videos: {
+        displayName: string;
+        membershipId: string;
+        membershipType: number;
+        team: number;
+        linkName: string;
+        linkId?: string | number;
+        type: string;
+        url: string;
+        embedUrl: string;
+        thumbnail: string;
+        title?: string;
+        offset?: string;
+      }[];
+    }[] = [];
     for (let i = 0; i < rawInstances.length; i++) {
       const rawInstance = rawInstances[i];
       const instance = {

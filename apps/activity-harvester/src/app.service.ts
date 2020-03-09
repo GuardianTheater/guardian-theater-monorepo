@@ -1,21 +1,20 @@
 import { Injectable, Logger } from '@nestjs/common';
-import { BungieMembershipType, ServerResponse } from 'bungie-api-ts/user';
-import { getRepository, getConnection } from 'typeorm';
+import { ServerResponse } from 'bungie-api-ts/user';
+import { getConnection } from 'typeorm';
 import { PgcrEntryEntity } from '@services/shared-services/bungie/pgcr-entry.entity';
 import {
-  DestinyProfileComponent,
   getProfile,
   DestinyComponentType,
   DestinyHistoricalStatsPeriodGroup,
   getActivityHistory,
   getPostGameCarnageReport,
   DestinyActivityHistoryResults,
+  DestinyProfileResponse,
 } from 'bungie-api-ts/destiny2';
 import { BungieService } from '@services/shared-services/bungie/bungie.service';
 import { PgcrEntity } from '@services/shared-services/bungie/pgcr.entity';
 import { DestinyProfileEntity } from '@services/shared-services/bungie/destiny-profile.entity';
 import upsert from '@services/shared-services/helpers/typeorm-upsert';
-import { Interval } from '@nestjs/schedule';
 import uniqueEntityArray from '@services/shared-services/helpers/unique-entity-array';
 
 @Injectable()
@@ -29,14 +28,7 @@ export class AppService {
     this.logger.setContext('ActivityHarvester');
   }
 
-  @Interval(60000)
-  handleInterval() {
-    this.harvestActivityHistory().catch(() =>
-      this.logger.error(`Error running harvestActivityHistory`),
-    );
-  }
-
-  async harvestActivityHistory() {
+  async startHarvestQueue() {
     const staleVisitor = new Date(
       new Date().setDate(new Date().getDate() - 7),
     ).toISOString();
@@ -56,163 +48,127 @@ export class AppService {
       .innerJoin('channel.recordings', 'recordings')
       .select('profile.membershipId');
 
-    const usersToCheck = await getConnection()
+    const profilesToHarvest = await getConnection()
       .createQueryBuilder(DestinyProfileEntity, 'profile')
       .where(
         `(profile.pageLastVisited is not null AND profile.pageLastVisited > :staleVisitor) OR profile.membershipId IN (${profilesWithVideos.getQuery()}) OR profile.membershipId IN (${profilesWithRecordings.getQuery()})`,
+        // `profile.pageLastVisited is not null AND profile.pageLastVisited > :staleVisitor`,
         {
           staleVisitor,
         },
       )
+      .orderBy('profile.pageLastVisited', 'DESC', 'NULLS LAST')
       .orderBy('profile.activitiesLastChecked', 'ASC', 'NULLS FIRST')
-      .take(5)
+      .take(25)
       .getMany()
-      .catch(() => {
+      .catch(e => {
+        this.logger.error(e);
         this.logger.error(`Error fetching Destiny Profiles from database`);
         return [] as DestinyProfileEntity[];
       });
 
-    const existingActivities: PgcrEntryEntity[] = [];
-
-    const loadAllEntries = [];
-
-    for (let i = 0; i < usersToCheck.length; i++) {
-      const { membershipId } = usersToCheck[i];
-      const loadEntries = getRepository(PgcrEntryEntity)
-        .find({
-          where: {
-            profile: membershipId,
-          },
-          relations: ['instance'],
-        })
-        .then(res => res.map(entry => existingActivities.push(entry)))
-        .catch(() => {
-          this.logger.error(
-            `Error loading Entries from database for ${membershipId}`,
-          );
-        });
-      loadAllEntries.push(loadEntries);
-    }
-
-    await Promise.all(loadAllEntries).catch(() =>
-      this.logger.error('Error loading existing activities.'),
-    );
-
-    const skipActivities = new Set(
-      existingActivities.map(activity => activity.instance.instanceId),
-    );
-
-    const loadedProfiles: DestinyProfileComponent[] = [];
-    const loadAllProfiles = [];
-
-    for (let i = 0; i < usersToCheck.length; i++) {
-      const {
-        membershipId: destinyMembershipId,
-        membershipType,
-      } = usersToCheck[i];
-      const loadProfile = getProfile(
-        config => this.bungieService.bungieRequest(config),
-        {
-          components: [DestinyComponentType.Profiles],
-          destinyMembershipId,
-          membershipType,
-        },
-      )
-        .then(res => loadedProfiles.push(res.Response.profile.data))
+    for (let i = 0; i < profilesToHarvest.length; i++) {
+      const profile = profilesToHarvest[i];
+      this.logger.log(`Harvesting activites for ${profile.displayName}`);
+      await this.harvestDestinyProfileActivityHistory(profile)
+        .then(() =>
+          this.logger.log(`Harvested activities for ${profile.displayName}`),
+        )
         .catch(() =>
           this.logger.error(
-            `Error fetching Profile for ${membershipType}-${destinyMembershipId} from Bungie`,
+            `Error harvesting activities for ${profile.displayName}`,
           ),
         );
-      loadAllProfiles.push(loadProfile);
     }
+  }
 
-    await Promise.all(loadAllProfiles).catch(() =>
-      this.logger.error('Error fetching Profiles from Bungie.'),
+  async harvestDestinyProfileActivityHistory(profile: DestinyProfileEntity) {
+    const dateCutOff = new Date(
+      new Date().setDate(new Date().getDate() - this.daysOfHistory),
     );
 
-    const activities: DestinyHistoricalStatsPeriodGroup[] = [];
-    const activitiesPromises = [];
-
-    const createActivitiesPromise = async (
-      membershipType: BungieMembershipType,
-      destinyMembershipId: string,
-      characterId: string,
-    ) => {
-      let page = 0;
-      let loadMoreActivities = true;
-      const dateCutOff = new Date(
-        new Date().setDate(new Date().getDate() - this.daysOfHistory),
-      );
-
-      while (loadMoreActivities) {
-        await getActivityHistory(
-          config => this.bungieService.bungieRequest(config),
-          {
-            membershipType,
-            destinyMembershipId,
-            characterId,
-            count: 250,
-            page,
-          },
-        )
-          .then((res: ServerResponse<DestinyActivityHistoryResults>) => {
-            if (!res.Response || !res.Response.activities) {
-              loadMoreActivities = false;
-              return;
-            }
-            for (let k = 0; k < res.Response.activities.length; k++) {
-              const activity = res.Response.activities[k];
-
-              if (new Date(activity.period) < dateCutOff) {
-                loadMoreActivities = false;
-                break;
-              }
-
-              if (skipActivities.has(activity.activityDetails.instanceId)) {
-                continue;
-              }
-
-              activities.push(activity);
-            }
-
-            if (res.Response.activities.length < 250) {
-              loadMoreActivities = false;
-            }
-            page++;
-          })
-          .catch(() => {
-            loadMoreActivities = false;
-
-            this.logger.error(
-              `Error fetching Activity History for ${membershipType}-${destinyMembershipId}-${characterId}`,
-            );
-          });
-      }
-    };
-
-    for (let i = 0; i < loadedProfiles.length; i++) {
-      const loadedProfile = loadedProfiles[i];
-      for (let j = 0; j < loadedProfile.characterIds.length; j++) {
-        const characterId = loadedProfile.characterIds[j];
-
-        const activitiesPromise = createActivitiesPromise(
-          loadedProfile.userInfo.membershipType,
-          loadedProfile.userInfo.membershipId,
-          characterId,
+    const existingEntries: PgcrEntryEntity[] = await getConnection()
+      .createQueryBuilder(PgcrEntryEntity, 'entry')
+      .leftJoinAndSelect('entry.instance', 'instance')
+      .where('entry.profile = :membershipId', {
+        membershipId: profile.membershipId,
+      })
+      .getMany()
+      .catch(() => {
+        this.logger.error(
+          `Error loading Entries from database for ${profile.membershipId}`,
         );
+        return [] as PgcrEntryEntity[];
+      });
 
-        activitiesPromises.push(activitiesPromise);
-      }
-    }
+    const skipActivities = new Set(
+      existingEntries.map(entry => entry.instance.instanceId),
+    );
 
-    await Promise.all(activitiesPromises)
-      .then(() =>
+    const profileResponse: ServerResponse<DestinyProfileResponse> = await getProfile(
+      config => this.bungieService.bungieRequest(config),
+      {
+        components: [DestinyComponentType.Profiles],
+        destinyMembershipId: profile.membershipId,
+        membershipType: profile.membershipType,
+      },
+    )
+      .then(res => {
         this.logger.log(
-          `Fetched ${activitiesPromises.length} pages of Activity History.`,
-        ),
+          `Fetched Profile for ${profile.membershipType}-${profile.membershipId} from Bungie`,
+        );
+        return res;
+      })
+      .catch(() => {
+        this.logger.error(
+          `Error fetching Profile for ${profile.membershipType}-${profile.membershipId} from Bungie`,
+        );
+        return {} as ServerResponse<DestinyProfileResponse>;
+      });
+
+    const loadedProfile = profileResponse.Response?.profile?.data;
+
+    const activities: DestinyHistoricalStatsPeriodGroup[] = [];
+
+    for (let i = 0; i < loadedProfile.characterIds.length; i++) {
+      const characterId = loadedProfile.characterIds[i];
+
+      await getActivityHistory(
+        config => this.bungieService.bungieRequest(config),
+        {
+          membershipType: profile.membershipType,
+          destinyMembershipId: profile.membershipId,
+          characterId,
+          count: 250,
+        },
       )
-      .catch(() => this.logger.error(`Error fetching Activity History`));
+        .then((res: ServerResponse<DestinyActivityHistoryResults>) => {
+          this.logger.log(
+            `Fetched Activity History for ${profile.membershipType}-${profile.membershipId}-${characterId} from Bungie`,
+          );
+          if (!res.Response || !res.Response.activities) {
+            return;
+          }
+          for (let k = 0; k < res.Response.activities.length; k++) {
+            const activity = res.Response.activities[k];
+
+            if (new Date(activity.period) < dateCutOff) {
+              break;
+            }
+
+            if (skipActivities.has(activity.activityDetails.instanceId)) {
+              continue;
+            }
+
+            activities.push(activity);
+          }
+        })
+        .catch(() => {
+          this.logger.error(
+            `Error fetching Activity History for ${profile.membershipType}-${profile.membershipId}-${characterId}`,
+          );
+        });
+    }
 
     const uniqueInstanceId = Array.from(
       new Set(activities.map(activity => activity.activityDetails.instanceId)),
@@ -227,14 +183,29 @@ export class AppService {
       }
     }
 
-    const pgcrPromises = [];
     const pgcrEntities: PgcrEntity[] = [];
     const pgcrEntryEntities: PgcrEntryEntity[] = [];
     const destinyProfileEntities: DestinyProfileEntity[] = [];
 
-    const createPgcrPromise = async (
-      activity: DestinyHistoricalStatsPeriodGroup,
-    ) => {
+    const existingPgcrs: PgcrEntity[] = await getConnection()
+      .createQueryBuilder(PgcrEntity, 'pgcr')
+      .where('pgcr.instanceId = ANY (:instanceIds)', {
+        instanceIds: uniqueInstanceId,
+      })
+      .getMany()
+      .catch(() => {
+        this.logger.error(`Error retrieving PGCRS from database`);
+        return [] as PgcrEntity[];
+      });
+
+    const existingPgcrSet = new Set(existingPgcrs.map(pgcr => pgcr.instanceId));
+
+    for (let i = 0; i < uniqueActivities.length; i++) {
+      const activity = uniqueActivities[i];
+      if (existingPgcrSet.has(activity.activityDetails.instanceId)) {
+        continue;
+      }
+
       await getPostGameCarnageReport(
         config => this.bungieService.bungieRequest(config, true),
         {
@@ -242,6 +213,9 @@ export class AppService {
         },
       )
         .then(pgcr => {
+          // this.logger.log(
+          //   `Fetched PGCR for ${activity.activityDetails.instanceId} from Bungie`,
+          // );
           const pgcrEntity = new PgcrEntity();
 
           pgcrEntity.instanceId = pgcr.Response.activityDetails.instanceId;
@@ -252,11 +226,12 @@ export class AppService {
           pgcrEntity.membershipType =
             pgcr.Response.activityDetails.membershipType;
           pgcrEntity.period = pgcr.Response.period;
+          pgcrEntity.mode = pgcr.Response.activityDetails.mode;
 
           pgcrEntities.push(pgcrEntity);
 
-          for (let i = 0; i < pgcr.Response.entries.length; i++) {
-            const entry = pgcr.Response.entries[i];
+          for (let j = 0; j < pgcr.Response.entries.length; j++) {
+            const entry = pgcr.Response.entries[j];
             if (
               entry.player.destinyUserInfo.membershipId &&
               entry.player.destinyUserInfo.displayName
@@ -307,36 +282,7 @@ export class AppService {
             `Error fetching PGCR for ${activity.activityDetails.instanceId}`,
           ),
         );
-    };
-
-    for (let i = 0; i < activities.length; i++) {
-      const activity = uniqueActivities[i];
-      if (activity) {
-        const pgcrPromise = getRepository(PgcrEntity)
-          .createQueryBuilder('pgcr')
-          .where('pgcr.instanceId = :instanceId', {
-            instanceId: activity.activityDetails.instanceId,
-          })
-          .getOne()
-          .then(res => {
-            if (!res || !res.instanceId) {
-              return createPgcrPromise(activity);
-            }
-          })
-          .catch(() =>
-            this.logger.error(
-              `Error fetching PGCR for ${activity.activityDetails.instanceId}`,
-            ),
-          );
-        pgcrPromises.push(pgcrPromise);
-      }
     }
-
-    await Promise.all(pgcrPromises)
-      .then(() => this.logger.log(`Fetched ${pgcrPromises.length} PGCRs.`))
-      .catch(() =>
-        this.logger.error(`Error fetching ${pgcrPromises.length} PGCRs.`),
-      );
 
     const uniqueProfiles = uniqueEntityArray(
       destinyProfileEntities,
@@ -396,31 +342,20 @@ export class AppService {
         );
     }
 
-    const logTimestamps = [];
+    const profileEntity = new DestinyProfileEntity();
+    profileEntity.membershipId = loadedProfile.userInfo.membershipId;
+    profileEntity.displayName = loadedProfile.userInfo.displayName;
+    profileEntity.membershipType = loadedProfile.userInfo.membershipType;
+    profileEntity.activitiesLastChecked = new Date().toISOString();
 
-    for (let i = 0; i < loadedProfiles.length; i++) {
-      const profile = loadedProfiles[i];
-
-      const profileEntity = new DestinyProfileEntity();
-      profileEntity.membershipId = profile.userInfo.membershipId;
-      profileEntity.displayName = profile.userInfo.displayName;
-      profileEntity.membershipType = profile.userInfo.membershipType;
-      profileEntity.activitiesLastChecked = new Date().toISOString();
-
-      const log = upsert(
-        DestinyProfileEntity,
-        profileEntity,
-        'membershipId',
-      ).catch(() =>
-        this.logger.error(
-          `Error logging activitiesLastChecked timestamp for ${profile.userInfo.membershipType}-${profile.userInfo.membershipId}.`,
-        ),
-      );
-      logTimestamps.push(log);
-    }
-
-    await Promise.all(logTimestamps).catch(() =>
-      this.logger.error('Error logging activitiesLastChecked timestamps.'),
+    await upsert(
+      DestinyProfileEntity,
+      profileEntity,
+      'membershipId',
+    ).catch(() =>
+      this.logger.error(
+        `Error logging activitiesLastChecked timestamp for ${loadedProfile.userInfo.membershipType}-${loadedProfile.userInfo.membershipId}.`,
+      ),
     );
   }
 }

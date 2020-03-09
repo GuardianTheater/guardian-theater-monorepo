@@ -32,7 +32,7 @@ export class AppService {
     const channelsToCheck = await getConnection()
       .createQueryBuilder(MixerChannelEntity, 'channel')
       .orderBy('channel.lastRecordingCheck', 'ASC', 'NULLS FIRST')
-      .take(100)
+      .take(200)
       .getMany()
       .catch(() => {
         this.logger.error(`Error loading Mixer channels from database`);
