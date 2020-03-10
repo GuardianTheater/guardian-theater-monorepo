@@ -200,13 +200,15 @@ export class AppService {
 
     const existingPgcrSet = new Set(existingPgcrs.map(pgcr => pgcr.instanceId));
 
+    const promisesOfCarnage = [];
+
     for (let i = 0; i < uniqueActivities.length; i++) {
       const activity = uniqueActivities[i];
       if (existingPgcrSet.has(activity.activityDetails.instanceId)) {
         continue;
       }
 
-      await getPostGameCarnageReport(
+      const carnageReportPromise = getPostGameCarnageReport(
         config => this.bungieService.bungieRequest(config, true),
         {
           activityId: activity.activityDetails.instanceId,
@@ -281,7 +283,21 @@ export class AppService {
             `Error fetching PGCR for ${activity.activityDetails.instanceId}`,
           ),
         );
+
+      promisesOfCarnage.push(carnageReportPromise);
     }
+
+    await Promise.all(promisesOfCarnage)
+      .then(() =>
+        this.logger.log(
+          `Fetched ${promisesOfCarnage.length} PGCRs from Bungie`,
+        ),
+      )
+      .catch(() =>
+        this.logger.error(
+          `Error fetching ${promisesOfCarnage.length} PGCRs from Bungie`,
+        ),
+      );
 
     const uniqueProfiles = uniqueEntityArray(
       destinyProfileEntities,
