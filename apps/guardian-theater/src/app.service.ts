@@ -559,9 +559,11 @@ export class AppService {
   }
 
   async getStreamerVsStreamerInstances() {
+    return [];
     const pgcrsWithVideos17 = getConnection()
       .createQueryBuilder(PgcrEntity, 'pgcr')
-      .innerJoin('pgcr.entries', 'entries', 'entries.team = 17')
+      .limit(100)
+      .innerJoin('pgcr.entries', 'entries')
       .innerJoin('entries.profile', 'destinyProfile')
       .innerJoin('destinyProfile.accountLinks', 'accountLinks')
       .innerJoin('accountLinks.twitchAccount', 'twitchAccount')
@@ -571,8 +573,10 @@ export class AppService {
         'entries.timePlayedRange && videos.durationRange',
       )
       .select('pgcr.instanceId');
+    // return pgcrsWithVideos17.take(100).getMany();
     const pgcrsWithVideos18 = getConnection()
       .createQueryBuilder(PgcrEntity, 'pgcr')
+      .limit(100)
       .innerJoin('pgcr.entries', 'entries', 'entries.team = 18')
       .innerJoin('entries.profile', 'destinyProfile')
       .innerJoin('destinyProfile.accountLinks', 'accountLinks')
@@ -584,10 +588,9 @@ export class AppService {
       )
       .select('pgcr.instanceId');
 
-    // return pgcrsWithVideos17.take(100).getMany();
-
     const pgcrsWithRecordings17 = getConnection()
       .createQueryBuilder(PgcrEntity, 'pgcr')
+      .limit(100)
       .innerJoin('pgcr.entries', 'entries', 'entries.team = 17')
       .innerJoin('entries.profile', 'destinyProfile')
       .innerJoin('destinyProfile.accountLinks', 'accountLinks')
@@ -601,6 +604,7 @@ export class AppService {
       .select('pgcr.instanceId');
     const pgcrsWithRecordings18 = getConnection()
       .createQueryBuilder(PgcrEntity, 'pgcr')
+      .limit(100)
       .innerJoin('pgcr.entries', 'entries', 'entries.team = 18')
       .innerJoin('entries.profile', 'destinyProfile')
       .innerJoin('destinyProfile.accountLinks', 'accountLinks')
@@ -617,6 +621,7 @@ export class AppService {
 
     const pgcrsWithLinkedVideos17 = getConnection()
       .createQueryBuilder(PgcrEntity, 'pgcr')
+      .limit(100)
       .innerJoin('pgcr.entries', 'entries', 'entries.team = 17')
       .innerJoin('entries.profile', 'destinyProfile')
       .innerJoin('destinyProfile.bnetProfile', 'bnetProfile')
@@ -635,6 +640,7 @@ export class AppService {
       .select('pgcr.instanceId');
     const pgcrsWithLinkedVideos18 = getConnection()
       .createQueryBuilder(PgcrEntity, 'pgcr')
+      .limit(100)
       .innerJoin('pgcr.entries', 'entries', 'entries.team = 18')
       .innerJoin('entries.profile', 'destinyProfile')
       .innerJoin('destinyProfile.bnetProfile', 'bnetProfile')
@@ -656,6 +662,7 @@ export class AppService {
 
     const pgcrsWithLinkedRecordings17 = getConnection()
       .createQueryBuilder(PgcrEntity, 'pgcr')
+      .limit(100)
       .innerJoin('pgcr.entries', 'entries', 'entries.team = 17')
       .innerJoin('entries.profile', 'destinyProfile')
       .innerJoin('destinyProfile.bnetProfile', 'bnetProfile')
@@ -675,6 +682,7 @@ export class AppService {
       .select('pgcr.instanceId');
     const pgcrsWithLinkedRecordings18 = getConnection()
       .createQueryBuilder(PgcrEntity, 'pgcr')
+      .limit(100)
       .innerJoin('pgcr.entries', 'entries', 'entries.team = 18')
       .innerJoin('entries.profile', 'destinyProfile')
       .innerJoin('destinyProfile.bnetProfile', 'bnetProfile')
@@ -697,6 +705,7 @@ export class AppService {
 
     const pgcrs = getConnection()
       .createQueryBuilder(PgcrEntity, 'pgcr')
+      .limit(1000)
       .where(
         `(pgcr.instanceId IN (${pgcrsWithVideos17.getQuery()}) OR pgcr.instanceId IN (${pgcrsWithRecordings17.getQuery()}) OR pgcr.instanceId IN (${pgcrsWithLinkedVideos17.getQuery()}) OR pgcr.instanceId IN (${pgcrsWithLinkedRecordings17.getQuery()})) AND (pgcr.instanceId IN (${pgcrsWithVideos18.getQuery()}) OR pgcr.instanceId IN (${pgcrsWithRecordings18.getQuery()}) OR pgcr.instanceId IN (${pgcrsWithLinkedVideos18.getQuery()}) OR pgcr.instanceId IN (${pgcrsWithLinkedRecordings18.getQuery()}))`,
       )

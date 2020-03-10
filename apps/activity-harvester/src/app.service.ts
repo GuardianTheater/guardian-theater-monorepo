@@ -53,8 +53,8 @@ export class AppService {
       .createQueryBuilder(DestinyProfileEntity, 'profile')
       .where(
         // `(profile.pageLastVisited is not null AND profile.pageLastVisited > :staleVisitor) OR (profile.activitiesLastChecked is null AND (profile.membershipId IN (${profilesWithVideos.getQuery()}) OR profile.membershipId IN (${profilesWithRecordings.getQuery()})))`,
-        `profile.activitiesLastChecked is null OR (profile.pageLastVisited is not null AND profile.pageLastVisited > :staleVisitor)`,
-        // `profile.pageLastVisited is not null AND profile.pageLastVisited > :staleVisitor`,
+        // `profile.activitiesLastChecked is null OR (profile.pageLastVisited is not null AND profile.pageLastVisited > :staleVisitor)`,
+        `profile.pageLastVisited is not null AND profile.pageLastVisited > :staleVisitor`,
         {
           staleVisitor,
         },
