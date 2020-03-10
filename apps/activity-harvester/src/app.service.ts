@@ -72,13 +72,13 @@ export class AppService {
       const profile = profilesToHarvest[i];
       this.logger.log(`Harvesting activites for ${profile.displayName}`);
       await this.harvestDestinyProfileActivityHistory(profile)
-        .then(() =>
-          this.logger.log(`Harvested activities for ${profile.displayName}`),
-        )
         .catch(() =>
           this.logger.error(
             `Error harvesting activities for ${profile.displayName}`,
           ),
+        )
+        .finally(() =>
+          this.logger.log(`Harvested activities for ${profile.displayName}`),
         );
     }
   }
@@ -114,17 +114,16 @@ export class AppService {
         membershipType: profile.membershipType,
       },
     )
-      .then(res => {
-        this.logger.log(
-          `Fetched Profile for ${profile.membershipType}-${profile.membershipId} from Bungie`,
-        );
-        return res;
-      })
       .catch(() => {
         this.logger.error(
           `Error fetching Profile for ${profile.membershipType}-${profile.membershipId} from Bungie`,
         );
         return {} as ServerResponse<DestinyProfileResponse>;
+      })
+      .finally(() => {
+        this.logger.log(
+          `Fetched Profile for ${profile.membershipType}-${profile.membershipId} from Bungie`,
+        );
       });
 
     const loadedProfile = profileResponse.Response?.profile?.data;
@@ -134,7 +133,7 @@ export class AppService {
     for (let i = 0; i < loadedProfile.characterIds.length; i++) {
       const characterId = loadedProfile.characterIds[i];
 
-      await getActivityHistory(
+      const history: ServerResponse<DestinyActivityHistoryResults> = await getActivityHistory(
         config => this.bungieService.bungieRequest(config),
         {
           membershipType: profile.membershipType,
@@ -143,32 +142,34 @@ export class AppService {
           count: 250,
         },
       )
-        .then((res: ServerResponse<DestinyActivityHistoryResults>) => {
-          this.logger.log(
-            `Fetched Activity History for ${profile.membershipType}-${profile.membershipId}-${characterId} from Bungie`,
-          );
-          if (!res.Response || !res.Response.activities) {
-            return;
-          }
-          for (let k = 0; k < res.Response.activities.length; k++) {
-            const activity = res.Response.activities[k];
-
-            if (new Date(activity.period) < dateCutOff) {
-              break;
-            }
-
-            if (skipActivities.has(activity.activityDetails.instanceId)) {
-              continue;
-            }
-
-            activities.push(activity);
-          }
-        })
         .catch(() => {
           this.logger.error(
             `Error fetching Activity History for ${profile.membershipType}-${profile.membershipId}-${characterId}`,
           );
+          return {} as ServerResponse<DestinyActivityHistoryResults>;
+        })
+        .finally(() => {
+          this.logger.log(
+            `Fetched Activity History for ${profile.membershipType}-${profile.membershipId}-${characterId} from Bungie`,
+          );
         });
+
+      if (!history.Response || !history.Response.activities) {
+        return;
+      }
+      for (let k = 0; k < history.Response.activities.length; k++) {
+        const activity = history.Response.activities[k];
+
+        if (new Date(activity.period) < dateCutOff) {
+          break;
+        }
+
+        if (skipActivities.has(activity.activityDetails.instanceId)) {
+          continue;
+        }
+
+        activities.push(activity);
+      }
     }
 
     const uniqueInstanceId = Array.from(
@@ -216,9 +217,6 @@ export class AppService {
         },
       )
         .then(pgcr => {
-          // this.logger.log(
-          //   `Fetched PGCR for ${activity.activityDetails.instanceId} from Bungie`,
-          // );
           const pgcrEntity = new PgcrEntity();
 
           pgcrEntity.instanceId = pgcr.Response.activityDetails.instanceId;
@@ -289,14 +287,14 @@ export class AppService {
     }
 
     await Promise.all(promisesOfCarnage)
-      .then(() =>
-        this.logger.log(
-          `Fetched ${promisesOfCarnage.length} PGCRs from Bungie`,
-        ),
-      )
       .catch(() =>
         this.logger.error(
           `Error fetching ${promisesOfCarnage.length} PGCRs from Bungie`,
+        ),
+      )
+      .finally(() =>
+        this.logger.log(
+          `Fetched ${promisesOfCarnage.length} PGCRs from Bungie`,
         ),
       );
 
@@ -307,9 +305,11 @@ export class AppService {
 
     if (uniqueProfiles.length) {
       await upsert(DestinyProfileEntity, uniqueProfiles, 'membershipId')
-        .then(() => this.logger.log(`Saved ${uniqueProfiles.length} Profiles.`))
         .catch(() =>
           this.logger.error(`Error saving ${uniqueProfiles.length} Profiles.`),
+        )
+        .finally(() =>
+          this.logger.log(`Saved ${uniqueProfiles.length} Profiles.`),
         );
     }
 
@@ -317,10 +317,10 @@ export class AppService {
 
     if (uniquePgcrs.length) {
       await upsert(PgcrEntity, uniquePgcrs, 'instanceId')
-        .then(() => this.logger.log(`Saved ${uniquePgcrs.length} PGCRs.`))
         .catch(() =>
           this.logger.error(`Error saving ${uniquePgcrs.length} PGCRs.`),
-        );
+        )
+        .finally(() => this.logger.log(`Saved ${uniquePgcrs.length} PGCRs.`));
     }
 
     const uniqueEntryId = Array.from(
@@ -352,9 +352,11 @@ export class AppService {
 
     if (uniqueEntries.length) {
       await upsert(PgcrEntryEntity, uniqueEntries, 'profile", "instance')
-        .then(() => this.logger.log(`Saved ${uniqueEntries.length} Entries.`))
         .catch(() =>
           this.logger.error(`Error saving ${uniqueEntries.length} Entries.`),
+        )
+        .finally(() =>
+          this.logger.log(`Saved ${uniqueEntries.length} Entries.`),
         );
     }
 
