@@ -2,12 +2,16 @@ import { Injectable, Logger } from '@nestjs/common';
 import { TwitchService } from '@services/shared-services';
 import { getConnection } from 'typeorm';
 import { DestinyProfileEntity } from '@services/shared-services/bungie/destiny-profile.entity';
-import { User } from '@services/shared-services/twitch/twitch.types';
+import {
+  User,
+  GetUsersResponse,
+} from '@services/shared-services/twitch/twitch.types';
 import { TwitchAccountEntity } from '@services/shared-services/twitch/twitch-account.entity';
 import upsert from '@services/shared-services/helpers/typeorm-upsert';
 import { Interval } from '@nestjs/schedule';
 import uniqueEntityArray from '@services/shared-services/helpers/unique-entity-array';
 import { AccountLinkEntity } from '@services/shared-services/helpers/account-link.entity';
+import { AxiosResponse } from 'axios';
 
 @Injectable()
 export class AppService {
@@ -51,32 +55,35 @@ export class AppService {
 
     for (let i = 0; i < nameChunks.length; i++) {
       if (nameChunks[i].length) {
-        const search = this.twitchService
-          .getUsersFromLogin(nameChunks[i])
-          .then(res => {
-            if (res && res.data && res.data.data) {
-              for (let j = 0; j < res.data.data.length; j++) {
-                results.push(res.data.data[j]);
-              }
+        const search = new Promise(async resolve => {
+          const res: AxiosResponse<GetUsersResponse> = await this.twitchService
+            .getUsersFromLogin(nameChunks[i])
+            .catch(() => {
+              this.logger.error(
+                `Error fetching Twitch search for ${nameChunks[i].length} accounts`,
+              );
+              return {} as AxiosResponse;
+            });
+          if (res && res.data && res.data.data) {
+            for (let j = 0; j < res.data.data.length; j++) {
+              results.push(res.data.data[j]);
             }
-          })
-          .catch(() =>
-            this.logger.error(
-              `Error fetching Twitch search for ${nameChunks[i].length} accounts`,
-            ),
-          );
+          }
+          resolve();
+        });
+
         allSearches.push(search);
       }
     }
 
     await Promise.all(allSearches)
-      .then(() =>
-        this.logger.log(`Fetched ${allSearches.length} Twitch searches`),
-      )
       .catch(() =>
         this.logger.error(
           `Error fetching ${allSearches.length} Twitch searches`,
         ),
+      )
+      .finally(() =>
+        this.logger.log(`Fetched ${allSearches.length} Twitch searches`),
       );
 
     const twitchAccountEntities: TwitchAccountEntity[] = [];
@@ -139,14 +146,14 @@ export class AppService {
 
     if (uniqueTwitchAccountEntities.length) {
       await upsert(TwitchAccountEntity, uniqueTwitchAccountEntities, 'id')
-        .then(() =>
-          this.logger.log(
-            `Saved ${uniqueTwitchAccountEntities.length} Twitch Account Entities`,
-          ),
-        )
         .catch(() =>
           this.logger.error(
             `Error saving ${uniqueTwitchAccountEntities.length} Twitch Account Entities`,
+          ),
+        )
+        .finally(() =>
+          this.logger.log(
+            `Saved ${uniqueTwitchAccountEntities.length} Twitch Account Entities`,
           ),
         );
     }
@@ -157,28 +164,28 @@ export class AppService {
         uniqueDestinyProfileEntities,
         'membershipId',
       )
-        .then(() =>
-          this.logger.log(
-            `Saved ${uniqueDestinyProfileEntities.length} Destiny Profile Entities`,
-          ),
-        )
         .catch(() =>
           this.logger.error(
             `Error saving ${uniqueDestinyProfileEntities.length} Destiny Profile Entities`,
+          ),
+        )
+        .finally(() =>
+          this.logger.log(
+            `Saved ${uniqueDestinyProfileEntities.length} Destiny Profile Entities`,
           ),
         );
     }
 
     if (uniqueAccountLinkEntity.length) {
       await upsert(AccountLinkEntity, uniqueAccountLinkEntity, 'id')
-        .then(() =>
-          this.logger.log(
-            `Saved ${uniqueAccountLinkEntity.length} Account Link Entities`,
-          ),
-        )
         .catch(() =>
           this.logger.error(
             `Error saving ${uniqueAccountLinkEntity.length} Account Link Entities`,
+          ),
+        )
+        .finally(() =>
+          this.logger.log(
+            `Saved ${uniqueAccountLinkEntity.length} Account Link Entities`,
           ),
         );
     }

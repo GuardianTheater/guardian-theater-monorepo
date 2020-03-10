@@ -9,6 +9,7 @@ import upsert from '@services/shared-services/helpers/typeorm-upsert';
 import { UserWithChannel } from '@services/shared-services/mixer/mixer.types';
 import uniqueEntityArray from '@services/shared-services/helpers/unique-entity-array';
 import { AccountLinkEntity } from '@services/shared-services/helpers/account-link.entity';
+import { AxiosResponse } from 'axios';
 
 @Injectable()
 export class AppService {
@@ -45,19 +46,20 @@ export class AppService {
     const mixerChannelEntities: MixerChannelEntity[] = [];
     const accountLinkEntities: AccountLinkEntity[] = [];
 
-    const profileSearch = async (profile: DestinyProfileEntity) =>
-      this.mixerService
+    const profileSearch = async (profile: DestinyProfileEntity) => {
+      const res: AxiosResponse<UserWithChannel[]> = await this.mixerService
         .searchUser(profile.displayName.replace(/\s/g, '_'))
-        .then(async res => {
-          if (res && res.data && res.data[0]) {
-            results.push(res.data[0]);
-          }
-        })
-        .catch(() =>
+        .catch(() => {
           this.logger.error(
             `Error searching Mixer account for ${profile.displayName}`,
-          ),
-        );
+          );
+          return {} as AxiosResponse;
+        });
+
+      if (res && res.data && res.data[0]) {
+        results.push(res.data[0]);
+      }
+    };
 
     for (let i = 0; i < loadedProfiles.length; i++) {
       const loadedProfile = loadedProfiles[i];
@@ -73,13 +75,13 @@ export class AppService {
     }
 
     await Promise.all(allSearches)
-      .then(() =>
-        this.logger.log(`Fetched ${allSearches.length} Mixer search results.`),
-      )
       .catch(() =>
         this.logger.error(
           `Error while fetching ${allSearches.length} Mixer search results`,
         ),
+      )
+      .finally(() =>
+        this.logger.log(`Fetched ${allSearches.length} Mixer search results.`),
       );
 
     for (let i = 0; i < profileEntities.length; i++) {
@@ -138,28 +140,28 @@ export class AppService {
 
     if (uniqueMixerChannelEntities.length) {
       await upsert(MixerChannelEntity, uniqueMixerChannelEntities, 'id')
-        .then(() =>
-          this.logger.log(
-            `Saved ${uniqueMixerChannelEntities.length} Mixer Channel Entities`,
-          ),
-        )
         .catch(() =>
           this.logger.error(
             `Error saving ${uniqueMixerChannelEntities.length} Mixer Channel Entities`,
+          ),
+        )
+        .finally(() =>
+          this.logger.log(
+            `Saved ${uniqueMixerChannelEntities.length} Mixer Channel Entities`,
           ),
         );
     }
 
     if (uniqueMixerAccountEntities.length) {
       await upsert(MixerAccountEntity, uniqueMixerAccountEntities, 'id')
-        .then(() =>
-          this.logger.log(
-            `Saved ${uniqueMixerAccountEntities.length} Mixer Account Entities`,
-          ),
-        )
         .catch(() =>
           this.logger.error(
             `Error saving ${uniqueMixerAccountEntities} Mixer Account Entities`,
+          ),
+        )
+        .finally(() =>
+          this.logger.log(
+            `Saved ${uniqueMixerAccountEntities.length} Mixer Account Entities`,
           ),
         );
     }
@@ -170,28 +172,28 @@ export class AppService {
         uniqueDestinyProfileEntities,
         'membershipId',
       )
-        .then(() =>
-          this.logger.log(
-            `Saved ${uniqueDestinyProfileEntities.length} Destiny Profile Entities`,
-          ),
-        )
         .catch(() =>
           this.logger.error(
             `Error saving ${uniqueDestinyProfileEntities.length} Destiny Profile Entities`,
+          ),
+        )
+        .finally(() =>
+          this.logger.log(
+            `Saved ${uniqueDestinyProfileEntities.length} Destiny Profile Entities`,
           ),
         );
     }
 
     if (uniqueAccountLinkEntities.length) {
       await upsert(AccountLinkEntity, uniqueAccountLinkEntities, 'id')
-        .then(() =>
-          this.logger.log(
-            `Saved ${uniqueAccountLinkEntities.length} Account Link Entities`,
-          ),
-        )
         .catch(() =>
           this.logger.error(
             `Error saving ${uniqueAccountLinkEntities.length} Account Link Entities`,
+          ),
+        )
+        .finally(() =>
+          this.logger.log(
+            `Saved ${uniqueAccountLinkEntities.length} Account Link Entities`,
           ),
         );
     }

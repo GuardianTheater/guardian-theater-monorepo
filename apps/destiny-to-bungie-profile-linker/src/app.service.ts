@@ -1,7 +1,11 @@
 import { Injectable, Logger } from '@nestjs/common';
 import { getConnection } from 'typeorm';
 import { DestinyProfileEntity } from '@services/shared-services/bungie/destiny-profile.entity';
-import { getLinkedProfiles } from 'bungie-api-ts/destiny2';
+import {
+  getLinkedProfiles,
+  DestinyLinkedProfilesResponse,
+  ServerResponse,
+} from 'bungie-api-ts/destiny2';
 import { BungieService } from '@services/shared-services';
 import { BungieProfileEntity } from '@services/shared-services/bungie/bungie-profile.entity';
 import upsert from '@services/shared-services/helpers/typeorm-upsert';
@@ -48,46 +52,15 @@ export class AppService {
       profile.membershipType = loadedProfile.membershipType;
       profile.displayName = loadedProfile.displayName;
 
-      const request = getLinkedProfiles(
-        config => this.bungieService.bungieRequest(config),
-        {
-          membershipId: profile.membershipId,
-          membershipType: profile.membershipType,
-          getAllMemberships: true,
-        },
-      )
-        .then(linkedProfiles => {
-          profile.bnetProfileChecked = new Date().toISOString();
-          // profile.bnetProfileCheckError = false;
-
-          if (linkedProfiles.Response.bnetMembership) {
-            const bnetProfile = new BungieProfileEntity();
-            bnetProfile.membershipId =
-              linkedProfiles.Response.bnetMembership.membershipId;
-            bnetProfile.membershipType =
-              linkedProfiles.Response.bnetMembership.membershipType;
-
-            profile.bnetProfile = bnetProfile;
-            bungieProfiles.push(bnetProfile);
-          }
-          destinyProfiles.push(profile);
-
-          if (linkedProfiles.Response.bnetMembership) {
-            for (let j = 0; j < linkedProfiles.Response.profiles.length; j++) {
-              const linkedProfile = linkedProfiles.Response.profiles[j];
-              if (linkedProfile.membershipId !== profile.membershipId) {
-                const childProfile = new DestinyProfileEntity();
-                childProfile.bnetProfile = profile.bnetProfile;
-                childProfile.bnetProfileChecked = new Date().toISOString();
-                childProfile.displayName = linkedProfile.displayName;
-                childProfile.membershipId = linkedProfile.membershipId;
-                childProfile.membershipType = linkedProfile.membershipType;
-                destinyProfiles.push(childProfile);
-              }
-            }
-          }
-        })
-        .catch(() => {
+      const request = new Promise(async resolve => {
+        const linkedProfiles = await getLinkedProfiles(
+          config => this.bungieService.bungieRequest(config),
+          {
+            membershipId: profile.membershipId,
+            membershipType: profile.membershipType,
+            getAllMemberships: true,
+          },
+        ).catch(() => {
           // profile.bnetProfileChecked = new Date().toISOString();
           // profile.bnetProfileCheckError = true;
           // destinyProfiles.push(profile);
@@ -95,20 +68,52 @@ export class AppService {
           this.logger.error(
             `Error fetching linked profiles for ${profile.membershipType}-${profile.membershipId}`,
           );
+
+          return {} as ServerResponse<DestinyLinkedProfilesResponse>;
         });
+        profile.bnetProfileChecked = new Date().toISOString();
+        // profile.bnetProfileCheckError = false;
+
+        if (linkedProfiles.Response?.bnetMembership) {
+          const bnetProfile = new BungieProfileEntity();
+          bnetProfile.membershipId =
+            linkedProfiles.Response.bnetMembership.membershipId;
+          bnetProfile.membershipType =
+            linkedProfiles.Response.bnetMembership.membershipType;
+
+          profile.bnetProfile = bnetProfile;
+          bungieProfiles.push(bnetProfile);
+          destinyProfiles.push(profile);
+
+          for (let j = 0; j < linkedProfiles.Response.profiles.length; j++) {
+            const linkedProfile = linkedProfiles.Response.profiles[j];
+            if (linkedProfile.membershipId !== profile.membershipId) {
+              const childProfile = new DestinyProfileEntity();
+              childProfile.bnetProfile = profile.bnetProfile;
+              childProfile.bnetProfileChecked = new Date().toISOString();
+              childProfile.displayName = linkedProfile.displayName;
+              childProfile.membershipId = linkedProfile.membershipId;
+              childProfile.membershipType = linkedProfile.membershipType;
+              destinyProfiles.push(childProfile);
+            }
+          }
+        }
+
+        resolve();
+      });
       requests.push(request);
     }
 
     if (requests.length) {
       await Promise.all(requests)
-        .then(() => {
-          this.logger.log(`Fetched ${profilesToCheck.length} Linked Profiles`);
-        })
         .catch(() =>
           this.logger.error(
             `Error fetching ${profilesToCheck.length} Linked Profiles`,
           ),
-        );
+        )
+        .finally(() => {
+          this.logger.log(`Fetched ${profilesToCheck.length} Linked Profiles`);
+        });
     }
 
     const uniqueBungieProfiles = uniqueEntityArray(
@@ -118,14 +123,14 @@ export class AppService {
 
     if (uniqueBungieProfiles.length) {
       await upsert(BungieProfileEntity, uniqueBungieProfiles, 'membershipId')
-        .then(() =>
-          this.logger.log(
-            `Saved ${uniqueBungieProfiles.length} Bungie Profiles.`,
-          ),
-        )
         .catch(() =>
           this.logger.error(
             `Error saving ${uniqueBungieProfiles.length} Bungie Profiles.`,
+          ),
+        )
+        .finally(() =>
+          this.logger.log(
+            `Saved ${uniqueBungieProfiles.length} Bungie Profiles.`,
           ),
         );
     }
@@ -137,14 +142,14 @@ export class AppService {
 
     if (uniqueDestinyProfiles.length) {
       await upsert(DestinyProfileEntity, uniqueDestinyProfiles, 'membershipId')
-        .then(() =>
-          this.logger.log(
-            `Saved ${uniqueDestinyProfiles.length} Destiny Profiles.`,
-          ),
-        )
         .catch(() =>
           this.logger.error(
             `Error saving ${uniqueDestinyProfiles.length} Destiny Profiles.`,
+          ),
+        )
+        .finally(() =>
+          this.logger.log(
+            `Saved ${uniqueDestinyProfiles.length} Destiny Profiles.`,
           ),
         );
     }

@@ -6,6 +6,8 @@ import { XboxService } from '@services/shared-services';
 import { XboxClipEntity } from '@services/shared-services/xbox/xbox-clip.entity';
 import upsert from '@services/shared-services/helpers/typeorm-upsert';
 import uniqueEntityArray from '@services/shared-services/helpers/unique-entity-array';
+import { XboxGameClipsResponse } from '@services/shared-services/xbox/xbox.types';
+import { AxiosResponse } from 'axios';
 
 @Injectable()
 export class AppService {
@@ -60,64 +62,64 @@ export class AppService {
 
       xboxAccountEntities.push(xboxAccount);
 
-      const clipFetcher = this.xboxService
-        .fetchConsoleDestiny2ClipsForGamertag(xboxAccount.gamertag)
-        .then(res => {
-          const toSave: XboxClipEntity[] = [];
-          if (res?.data?.gameClips) {
-            for (let j = 0; j < res.data.gameClips.length; j++) {
-              const clip = res.data.gameClips[j];
-              const endStamp = new Date(clip.dateRecorded);
-              if (endStamp < dateCutOff) {
-                break;
-              }
-              const xboxClipEntity = new XboxClipEntity();
-              xboxClipEntity.gameClipId = clip.gameClipId;
-              xboxClipEntity.scid = clip.scid;
-              xboxClipEntity.xuid = clip.xuid;
-              xboxClipEntity.xboxAccount = xboxAccount;
-              xboxClipEntity.thumbnailUri = clip.thumbnails.pop().uri;
-              xboxClipEntity.dateRecordedRange = `[${
-                clip.dateRecorded
-              }, ${endStamp.toISOString()}]`;
+      const clipFetcher = new Promise(async resolve => {
+        const res: AxiosResponse<XboxGameClipsResponse> = await this.xboxService
+          .fetchConsoleDestiny2ClipsForGamertag(xboxAccount.gamertag)
+          .catch(() => {
+            this.logger.error(
+              `Error fetching Xbox Clips for ${xboxAccount.gamertag}`,
+            );
+            return {} as AxiosResponse;
+          });
 
-              toSave.push(xboxClipEntity);
-              xboxClipEntitiesToSave.push(xboxClipEntity);
+        const toSave: XboxClipEntity[] = [];
+        if (res.data?.gameClips) {
+          for (let j = 0; j < res.data.gameClips.length; j++) {
+            const clip = res.data.gameClips[j];
+            const endStamp = new Date(clip.dateRecorded);
+            if (endStamp < dateCutOff) {
+              break;
             }
+            const xboxClipEntity = new XboxClipEntity();
+            xboxClipEntity.gameClipId = clip.gameClipId;
+            xboxClipEntity.scid = clip.scid;
+            xboxClipEntity.xuid = clip.xuid;
+            xboxClipEntity.xboxAccount = xboxAccount;
+            xboxClipEntity.thumbnailUri = clip.thumbnails.pop().uri;
+            xboxClipEntity.dateRecordedRange = `[${
+              clip.dateRecorded
+            }, ${endStamp.toISOString()}]`;
+
+            toSave.push(xboxClipEntity);
+            xboxClipEntitiesToSave.push(xboxClipEntity);
           }
-          return toSave;
-        })
-        .then(async toSave => {
-          if (xboxAccount.gamertag) {
-            const existingClips = await getConnection()
-              .createQueryBuilder(XboxClipEntity, 'xboxClip')
-              .where('xboxClip.xboxAccount = :gamertag', {
-                gamertag: xboxAccount.gamertag,
-              })
-              .getMany()
-              .catch(() => {
-                this.logger.error(
-                  `Error fetching exisitng clips from database.`,
-                );
-                return [] as XboxClipEntity[];
-              });
-            if (existingClips.length) {
-              const newClipIds = new Set(toSave.map(clip => clip.gameClipId));
-              for (let j = 0; j < existingClips.length; j++) {
-                const existingClip = existingClips[j];
-                if (newClipIds.has(existingClip.gameClipId)) {
-                  continue;
-                }
-                xboxClipEntitiesToDelete.push(existingClip);
+        }
+
+        if (xboxAccount.gamertag) {
+          const existingClips = await getConnection()
+            .createQueryBuilder(XboxClipEntity, 'xboxClip')
+            .where('xboxClip.xboxAccount = :gamertag', {
+              gamertag: xboxAccount.gamertag,
+            })
+            .getMany()
+            .catch(() => {
+              this.logger.error(`Error fetching exisitng clips from database.`);
+              return [] as XboxClipEntity[];
+            });
+          if (existingClips.length) {
+            const newClipIds = new Set(toSave.map(clip => clip.gameClipId));
+            for (let j = 0; j < existingClips.length; j++) {
+              const existingClip = existingClips[j];
+              if (newClipIds.has(existingClip.gameClipId)) {
+                continue;
               }
+              xboxClipEntitiesToDelete.push(existingClip);
             }
           }
-        })
-        .catch(() =>
-          this.logger.error(
-            `Error fetching Xbox Clips for ${xboxAccount.gamertag}`,
-          ),
-        );
+        }
+
+        resolve();
+      });
 
       xboxClipFetchers.push(clipFetcher);
     }
@@ -126,10 +128,17 @@ export class AppService {
       this.logger.log(
         `Fetching Xbox Clips for ${xboxClipFetchers.length} profiles.`,
       );
-      await Promise.all(xboxClipFetchers);
-      this.logger.log(
-        `Fetched Xbox Clips for ${xboxClipFetchers.length} profiles.`,
-      );
+      await Promise.all(xboxClipFetchers)
+        .catch(() =>
+          this.logger.error(
+            `Error fetching Xbox Clips for ${xboxClipFetchers.length} profiles.`,
+          ),
+        )
+        .finally(() =>
+          this.logger.log(
+            `Fetched Xbox Clips for ${xboxClipFetchers.length} profiles.`,
+          ),
+        );
     }
 
     const uniqueXboxAccountEntities = uniqueEntityArray(
@@ -149,28 +158,28 @@ export class AppService {
 
     if (uniqueXboxAccountEntities.length) {
       await upsert(XboxAccountEntity, uniqueXboxAccountEntities, 'gamertag')
-        .then(() =>
-          this.logger.log(
-            `Saved ${uniqueXboxAccountEntities.length} Xbox Accounts.`,
-          ),
-        )
         .catch(() =>
           this.logger.error(
             `Error saving ${uniqueXboxAccountEntities.length} Xbox Accounts.`,
+          ),
+        )
+        .finally(() =>
+          this.logger.log(
+            `Saved ${uniqueXboxAccountEntities.length} Xbox Accounts.`,
           ),
         );
     }
 
     if (uniqueXboxClipEntitiesToSave.length) {
       await upsert(XboxClipEntity, uniqueXboxClipEntitiesToSave, 'gameClipId')
-        .then(() =>
-          this.logger.log(
-            `Saved ${uniqueXboxClipEntitiesToSave.length} Xbox Clips.`,
-          ),
-        )
         .catch(() =>
           this.logger.error(
             `Error saving ${uniqueXboxClipEntitiesToSave.length} Xbox Clips.`,
+          ),
+        )
+        .finally(() =>
+          this.logger.log(
+            `Saved ${uniqueXboxClipEntitiesToSave.length} Xbox Clips.`,
           ),
         );
     }
@@ -191,14 +200,14 @@ export class AppService {
         deletes.push(deleteJob);
       }
       await Promise.all(deletes)
-        .then(() =>
-          this.logger.log(
-            `Deleted ${uniqueXboxClipEntitiesToDelete.length} clips.`,
-          ),
-        )
         .catch(() =>
           this.logger.error(
             `Issue deleting ${uniqueXboxClipEntitiesToDelete.length} clips`,
+          ),
+        )
+        .finally(() =>
+          this.logger.log(
+            `Deleted ${uniqueXboxClipEntitiesToDelete.length} clips.`,
           ),
         );
     }

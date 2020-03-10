@@ -17,7 +17,7 @@ export class TwitchService {
         Authorization: `Bearer ${this.accessToken}`,
       };
     } else {
-      return this.httpService
+      const res = await this.httpService
         .request({
           url: `https://id.twitch.tv/oauth2/token`,
           method: 'post',
@@ -27,19 +27,17 @@ export class TwitchService {
             grant_type: 'client_credentials',
           },
         })
-        .toPromise()
-        .then(res => {
-          this.tokenExpiration = new Date();
-          this.tokenExpiration = new Date(
-            this.tokenExpiration.setSeconds(
-              this.tokenExpiration.getSeconds() + res.data.expires_in - 100,
-            ),
-          );
-          this.accessToken = res.data.access_token;
-          return {
-            Authorization: `Bearer ${this.accessToken}`,
-          };
-        });
+        .toPromise();
+      this.tokenExpiration = new Date();
+      this.tokenExpiration = new Date(
+        this.tokenExpiration.setSeconds(
+          this.tokenExpiration.getSeconds() + res.data.expires_in - 100,
+        ),
+      );
+      this.accessToken = res.data.access_token;
+      return {
+        Authorization: `Bearer ${this.accessToken}`,
+      };
     }
   }
 

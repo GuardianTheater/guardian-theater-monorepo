@@ -90,14 +90,14 @@ export class AppService {
 
     if (uniqueXboxAccountEntities.length) {
       await upsert(XboxAccountEntity, uniqueXboxAccountEntities, 'gamertag')
-        .then(() =>
-          this.logger.log(
-            `Saved ${uniqueXboxAccountEntities.length} Xbox Accounts.`,
-          ),
-        )
         .catch(() =>
           this.logger.error(
             `Error saving ${uniqueXboxAccountEntities.length} Xbox Accounts.`,
+          ),
+        )
+        .finally(() =>
+          this.logger.log(
+            `Saved ${uniqueXboxAccountEntities.length} Xbox Accounts.`,
           ),
         );
     }
@@ -108,28 +108,28 @@ export class AppService {
         uniqueDestinyProfileEntities,
         'membershipId',
       )
-        .then(() =>
-          this.logger.log(
-            `Saved ${uniqueDestinyProfileEntities.length} Destiny Profiles.`,
-          ),
-        )
         .catch(() =>
           this.logger.error(
             `Error saving ${uniqueDestinyProfileEntities.length} Destiny Profiles.`,
+          ),
+        )
+        .finally(() =>
+          this.logger.log(
+            `Saved ${uniqueDestinyProfileEntities.length} Destiny Profiles.`,
           ),
         );
     }
 
     if (uniqueAccountLinkEntities.length) {
       await upsert(AccountLinkEntity, uniqueAccountLinkEntities, 'id')
-        .then(() =>
-          this.logger.log(
-            `Saved ${uniqueAccountLinkEntities.length} Account Links.`,
-          ),
-        )
         .catch(() =>
           this.logger.error(
             `Error saving ${uniqueAccountLinkEntities.length} Account Links.`,
+          ),
+        )
+        .finally(() =>
+          this.logger.log(
+            `Saved ${uniqueAccountLinkEntities.length} Account Links.`,
           ),
         );
     }

@@ -7,6 +7,8 @@ import { TwitchVideoEntity } from '@services/shared-services/twitch/twitch-video
 import { convertTwitchDurationToSeconds } from '@services/shared-services/helpers/twitch-duration-conversion';
 import uniqueEntityArray from '@services/shared-services/helpers/unique-entity-array';
 import upsert from '@services/shared-services/helpers/typeorm-upsert';
+import { GetVideosResponse } from '@services/shared-services/twitch/twitch.types';
+import { AxiosResponse } from 'axios';
 
 @Injectable()
 export class AppService {
@@ -57,65 +59,74 @@ export class AppService {
       account.lastRecordingCheck = new Date().toISOString();
       accountsToSave.push(account);
 
-      const promise = this.twitchService
-        .getVideos(account.id)
-        .then(res => {
-          const vods = res?.data?.data;
-          const toSave: TwitchVideoEntity[] = [];
-          for (let j = 0; j < vods.length; j++) {
-            const vod = vods[j];
-            if (new Date(vod.created_at) < dateCutOff) {
-              break;
-            }
-            const vodEntity = new TwitchVideoEntity();
-            vodEntity.id = vod.id;
-            vodEntity.user = account;
-            vodEntity.thumbnailUrl = vod.thumbnail_url;
-            vodEntity.title = vod.title;
-            vodEntity.url = vod.url;
-            vodEntity.durationRange = `[${vod.created_at},${new Date(
-              new Date(vod.created_at).setSeconds(
-                new Date(vod.created_at).getSeconds() +
-                  convertTwitchDurationToSeconds(vod.duration),
-              ),
-            ).toISOString()}]`;
-            toSave.push(vodEntity);
-            vodsToSave.push(vodEntity);
+      const promise = new Promise(async resolve => {
+        const res: AxiosResponse<GetVideosResponse> = await this.twitchService
+          .getVideos(account.id)
+          .catch(() => {
+            this.logger.error(`Error fetching Twitch Vods for ${account.id}`);
+            return {} as AxiosResponse;
+          });
+
+        const vods = res?.data?.data;
+        const toSave: TwitchVideoEntity[] = [];
+        for (let j = 0; j < vods?.length; j++) {
+          const vod = vods[j];
+          if (new Date(vod.created_at) < dateCutOff) {
+            break;
           }
-          return toSave;
-        })
-        .then(async toSave => {
-          const existingVods = await getConnection()
-            .createQueryBuilder(TwitchVideoEntity, 'vods')
-            .where('vods.user = :accountId', { accountId: account.id })
-            .getMany()
-            .catch(() => {
-              this.logger.log(`Error fetching exisitng vods from database.`);
-              return [] as TwitchVideoEntity[];
-            });
-          if (existingVods.length) {
-            const newVodIds = new Set(toSave.map(vod => vod.id));
-            for (let j = 0; j < existingVods.length; j++) {
-              const existingVod = existingVods[j];
-              if (newVodIds.has(existingVod.id)) {
-                continue;
-              }
-              vodsToDelete.push(existingVod);
+          const vodEntity = new TwitchVideoEntity();
+          vodEntity.id = vod.id;
+          vodEntity.user = account;
+          vodEntity.thumbnailUrl = vod.thumbnail_url;
+          vodEntity.title = vod.title;
+          vodEntity.url = vod.url;
+          vodEntity.durationRange = `[${vod.created_at},${new Date(
+            new Date(vod.created_at).setSeconds(
+              new Date(vod.created_at).getSeconds() +
+                convertTwitchDurationToSeconds(vod.duration),
+            ),
+          ).toISOString()}]`;
+          toSave.push(vodEntity);
+          vodsToSave.push(vodEntity);
+        }
+
+        const existingVods = await getConnection()
+          .createQueryBuilder(TwitchVideoEntity, 'vods')
+          .where('vods.user = :accountId', { accountId: account.id })
+          .getMany()
+          .catch(() => {
+            this.logger.log(`Error fetching exisitng vods from database.`);
+            return [] as TwitchVideoEntity[];
+          });
+        if (existingVods.length) {
+          const newVodIds = new Set(toSave.map(vod => vod.id));
+          for (let j = 0; j < existingVods.length; j++) {
+            const existingVod = existingVods[j];
+            if (newVodIds.has(existingVod.id)) {
+              continue;
             }
+            vodsToDelete.push(existingVod);
           }
-        })
-        .catch(() =>
-          this.logger.error(`Error fetching Twitch Vods for ${account.id}`),
-        );
+        }
+
+        resolve();
+      });
+
       vodPromises.push(promise);
     }
 
     if (vodPromises.length) {
-      this.logger.log(
-        `Fetching Twitch Vods for ${vodPromises.length} channels.`,
-      );
-      await Promise.all(vodPromises);
-      this.logger.log(`Fetched Twitch Vod for ${vodPromises.length} channels.`);
+      await Promise.all(vodPromises)
+        .catch(() =>
+          this.logger.error(
+            `Error fetching Twitch Vod for ${vodPromises.length} channels.`,
+          ),
+        )
+        .finally(() =>
+          this.logger.log(
+            `Fetched Twitch Vod for ${vodPromises.length} channels.`,
+          ),
+        );
     }
 
     const uniqueAccountEntities = uniqueEntityArray(accountsToSave, 'id');
@@ -127,23 +138,25 @@ export class AppService {
 
     if (uniqueAccountEntities.length) {
       await upsert(TwitchAccountEntity, uniqueAccountEntities, 'id')
-        .then(() =>
-          this.logger.log(
-            `Saved ${uniqueAccountEntities.length} Twitch Accounts.`,
-          ),
-        )
         .catch(() =>
           this.logger.error(
             `Error saving ${uniqueAccountEntities.length} Twitch Accounts.`,
+          ),
+        )
+        .finally(() =>
+          this.logger.log(
+            `Saved ${uniqueAccountEntities.length} Twitch Accounts.`,
           ),
         );
     }
 
     if (uniqueVodEntities.length) {
       await upsert(TwitchVideoEntity, uniqueVodEntities, 'id')
-        .then(() => this.logger.log(`Saved ${uniqueVodEntities.length} VODs.`))
         .catch(() =>
           this.logger.error(`Error saving ${uniqueVodEntities.length} VODs.`),
+        )
+        .finally(() =>
+          this.logger.log(`Saved ${uniqueVodEntities.length} VODs.`),
         );
     }
 
@@ -163,13 +176,13 @@ export class AppService {
         deletes.push(deleteJob);
       }
       await Promise.all(deletes)
-        .then(() =>
-          this.logger.log(`Deleted ${uniqueVodEntitiesToDelete.length} vods.`),
-        )
         .catch(() =>
           this.logger.error(
             `Issue deleting ${uniqueVodEntitiesToDelete.length} vods.`,
           ),
+        )
+        .finally(() =>
+          this.logger.log(`Deleted ${uniqueVodEntitiesToDelete.length} vods.`),
         );
     }
   }

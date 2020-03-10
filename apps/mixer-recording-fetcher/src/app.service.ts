@@ -6,6 +6,8 @@ import { MixerChannelEntity } from '@services/shared-services/mixer/mixer-channe
 import { MixerRecordingEntity } from '@services/shared-services/mixer/mixer-recording.entity';
 import uniqueEntityArray from '@services/shared-services/helpers/unique-entity-array';
 import upsert from '@services/shared-services/helpers/typeorm-upsert';
+import { AxiosResponse } from 'axios';
+import { Recording } from '@services/shared-services/mixer/mixer.types';
 
 @Injectable()
 export class AppService {
@@ -56,80 +58,85 @@ export class AppService {
       channel.lastRecordingCheck = new Date().toISOString();
       channelsToSave.push(channel);
 
-      const promise = this.mixerService
-        .getChannelRecordings(channel.id)
-        .then(res => {
-          const recordings = res.data;
-          const toSave: MixerRecordingEntity[] = [];
-          for (let j = 0; j < recordings.length; j++) {
-            const recording = recordings[j];
-            if (new Date(recording.createdAt) < dateCutOff) {
+      const promise = new Promise(async resolve => {
+        const res: AxiosResponse<Recording[]> = await this.mixerService
+          .getChannelRecordings(channel.id)
+          .catch(() => {
+            this.logger.error(
+              `Error fetching Mixer Recordings for ${channel.id}`,
+            );
+            return {} as AxiosResponse;
+          });
+        const recordings = res?.data;
+        const toSave: MixerRecordingEntity[] = [];
+        for (let j = 0; j < recordings.length; j++) {
+          const recording = recordings[j];
+          if (new Date(recording.createdAt) < dateCutOff) {
+            continue;
+          }
+          const recordingEntity = new MixerRecordingEntity();
+          recordingEntity.channel = channel;
+          recordingEntity.expiresAt = recording.expiresAt;
+          recordingEntity.id = recording.id;
+          recordingEntity.title = recording.name;
+          recordingEntity.durationRange = `[${recording.createdAt},${new Date(
+            new Date(recording.createdAt).setSeconds(
+              new Date(recording.createdAt).getSeconds() + recording.duration,
+            ),
+          ).toISOString()}]`;
+
+          for (let k = 0; k < recording.vods.length; k++) {
+            const vod = recording.vods[k];
+            if (vod.format === 'thumbnail') {
+              recordingEntity.thumbnail = `${vod.baseUrl}source.png`;
+            }
+          }
+          toSave.push(recordingEntity);
+          recordingsToSave.push(recordingEntity);
+        }
+
+        const existingRecordings = await getConnection()
+          .createQueryBuilder(MixerRecordingEntity, 'recordings')
+          .where('recordings.channel = :channelId', {
+            channelId: channel.id,
+          })
+          .getMany()
+          .catch(() => {
+            this.logger.log(
+              `Error fetching exisiting recordings from database.`,
+            );
+            return [] as MixerRecordingEntity[];
+          });
+        if (existingRecordings.length) {
+          const newRecordingIds = new Set(
+            toSave.map(recording => recording.id),
+          );
+          for (let j = 0; j < existingRecordings.length; j++) {
+            const existingRecording = existingRecordings[j];
+            if (newRecordingIds.has(existingRecording.id)) {
               continue;
             }
-            const recordingEntity = new MixerRecordingEntity();
-            recordingEntity.channel = channel;
-            recordingEntity.expiresAt = recording.expiresAt;
-            recordingEntity.id = recording.id;
-            recordingEntity.title = recording.name;
-            recordingEntity.durationRange = `[${recording.createdAt},${new Date(
-              new Date(recording.createdAt).setSeconds(
-                new Date(recording.createdAt).getSeconds() + recording.duration,
-              ),
-            ).toISOString()}]`;
+            recordingsToDelete.push(existingRecording);
+          }
+        }
 
-            for (let k = 0; k < recording.vods.length; k++) {
-              const vod = recording.vods[k];
-              if (vod.format === 'thumbnail') {
-                recordingEntity.thumbnail = `${vod.baseUrl}source.png`;
-              }
-            }
-            toSave.push(recordingEntity);
-            recordingsToSave.push(recordingEntity);
-          }
-          return toSave;
-        })
-        .then(async toSave => {
-          const existingRecordings = await getConnection()
-            .createQueryBuilder(MixerRecordingEntity, 'recordings')
-            .where('recordings.channel = :channelId', {
-              channelId: channel.id,
-            })
-            .getMany()
-            .catch(() => {
-              this.logger.log(
-                `Error fetching exisiting recordings from database.`,
-              );
-              return [] as MixerRecordingEntity[];
-            });
-          if (existingRecordings.length) {
-            const newRecordingIds = new Set(
-              toSave.map(recording => recording.id),
-            );
-            for (let j = 0; j < existingRecordings.length; j++) {
-              const existingRecording = existingRecordings[j];
-              if (newRecordingIds.has(existingRecording.id)) {
-                continue;
-              }
-              recordingsToDelete.push(existingRecording);
-            }
-          }
-        })
-        .catch(() =>
-          this.logger.error(
-            `Error fetching Mixer Recordings for ${channel.id}`,
-          ),
-        );
+        resolve();
+      });
       recordingsPromises.push(promise);
     }
 
     if (recordingsPromises.length) {
-      this.logger.log(
-        `Fetching Mixer Recordings for ${recordingsPromises.length} channels.`,
-      );
-      await Promise.all(recordingsPromises);
-      this.logger.log(
-        `Fetched Mixer Recordings for ${recordingsPromises.length} channels.`,
-      );
+      await Promise.all(recordingsPromises)
+        .catch(() =>
+          this.logger.error(
+            `Error fetching Mixer Recordings for ${recordingsPromises.length} channels.`,
+          ),
+        )
+        .finally(() =>
+          this.logger.log(
+            `Fetched Mixer Recordings for ${recordingsPromises.length} channels.`,
+          ),
+        );
     }
 
     const uniqueChannelEntities: MixerChannelEntity[] = uniqueEntityArray(
@@ -147,28 +154,28 @@ export class AppService {
 
     if (uniqueChannelEntities.length) {
       await upsert(MixerChannelEntity, uniqueChannelEntities, 'id')
-        .then(() =>
-          this.logger.log(
-            `Saved ${uniqueChannelEntities.length} Mixer Channels.`,
-          ),
-        )
         .catch(() =>
           this.logger.error(
             `Error saving ${uniqueChannelEntities.length} Mixer Channels.`,
+          ),
+        )
+        .finally(() =>
+          this.logger.log(
+            `Saved ${uniqueChannelEntities.length} Mixer Channels.`,
           ),
         );
     }
 
     if (uniqueRecordingEntities.length) {
       await upsert(MixerRecordingEntity, uniqueRecordingEntities, 'id')
-        .then(() =>
-          this.logger.log(
-            `Saved ${uniqueRecordingEntities.length} Mixer Recordings.`,
-          ),
-        )
         .catch(() =>
           this.logger.error(
             `Error saving ${uniqueRecordingEntities.length} Mixer Recordings.`,
+          ),
+        )
+        .finally(() =>
+          this.logger.log(
+            `Saved ${uniqueRecordingEntities.length} Mixer Recordings.`,
           ),
         );
     }
@@ -189,14 +196,14 @@ export class AppService {
         deletes.push(deleteJob);
       }
       await Promise.all(deletes)
-        .then(() =>
-          this.logger.log(
-            `Deleted ${uniqueRecordingEntitiesToDelete.length} recordings.`,
-          ),
-        )
         .catch(() =>
           this.logger.error(
             `Issue deleting ${uniqueRecordingEntitiesToDelete.length} recordings.`,
+          ),
+        )
+        .finally(() =>
+          this.logger.log(
+            `Deleted ${uniqueRecordingEntitiesToDelete.length} recordings.`,
           ),
         );
     }

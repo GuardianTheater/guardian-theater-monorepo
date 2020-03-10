@@ -3,8 +3,12 @@ import { getConnection } from 'typeorm';
 import { DestinyProfileEntity } from '@services/shared-services/bungie/destiny-profile.entity';
 import { PgcrEntryEntity } from '@services/shared-services/bungie/pgcr-entry.entity';
 import { convertSecondsToTwitchDuration } from '@services/shared-services/helpers/twitch-duration-conversion';
-import { BungieMembershipType } from 'bungie-api-ts/user';
-import { getProfile, DestinyComponentType } from 'bungie-api-ts/destiny2';
+import { BungieMembershipType, ServerResponse } from 'bungie-api-ts/user';
+import {
+  getProfile,
+  DestinyComponentType,
+  DestinyProfileResponse,
+} from 'bungie-api-ts/destiny2';
 import { BungieService } from '@services/shared-services';
 import upsert from '@services/shared-services/helpers/typeorm-upsert';
 import { AccountLinkEntity } from '@services/shared-services/helpers/account-link.entity';
@@ -21,33 +25,35 @@ export class AppService {
     membershipType: BungieMembershipType,
     destinyMembershipId: string,
   ) {
-    await getProfile(config => this.bungieService.bungieRequest(config), {
-      membershipType,
-      destinyMembershipId,
-      components: [DestinyComponentType.Profiles],
-    })
-      .then(async fetchedProfile => {
-        const userInfo = fetchedProfile?.Response?.profile?.data?.userInfo;
-        if (userInfo) {
-          const updateProfile = new DestinyProfileEntity();
-          updateProfile.displayName = userInfo.displayName;
-          updateProfile.membershipId = userInfo.membershipId;
-          updateProfile.membershipType = userInfo.membershipType;
-          updateProfile.pageLastVisited = new Date().toISOString();
-          return upsert(
-            DestinyProfileEntity,
-            updateProfile,
-            'membershipId',
-          ).catch(() =>
-            this.logger.error(
-              `Error Saving Profile - ${updateProfile.membershipId}`,
-            ),
-          );
-        }
-      })
-      .catch(() =>
-        this.logger.error(`Error Fetching Profile - ${destinyMembershipId}`),
+    const fetchedProfile = await getProfile(
+      config => this.bungieService.bungieRequest(config),
+      {
+        membershipType,
+        destinyMembershipId,
+        components: [DestinyComponentType.Profiles],
+      },
+    ).catch(() => {
+      this.logger.error(`Error Fetching Profile - ${destinyMembershipId}`);
+      return {} as ServerResponse<DestinyProfileResponse>;
+    });
+
+    const userInfo = fetchedProfile?.Response?.profile?.data?.userInfo;
+    if (userInfo) {
+      const updateProfile = new DestinyProfileEntity();
+      updateProfile.displayName = userInfo.displayName;
+      updateProfile.membershipId = userInfo.membershipId;
+      updateProfile.membershipType = userInfo.membershipType;
+      updateProfile.pageLastVisited = new Date().toISOString();
+      await upsert(
+        DestinyProfileEntity,
+        updateProfile,
+        'membershipId',
+      ).catch(() =>
+        this.logger.error(
+          `Error Saving Profile - ${updateProfile.membershipId}`,
+        ),
       );
+    }
 
     const profile = await getConnection()
       .createQueryBuilder(DestinyProfileEntity, 'profile')
