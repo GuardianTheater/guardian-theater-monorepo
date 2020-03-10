@@ -30,7 +30,7 @@ export class AppService {
 
   async startHarvestQueue() {
     const staleVisitor = new Date(
-      new Date().setDate(new Date().getDate() - 7),
+      new Date().setDate(new Date().getDate() - 10),
     ).toISOString();
 
     // const profilesWithVideos = getConnection()
@@ -52,13 +52,14 @@ export class AppService {
       .createQueryBuilder(DestinyProfileEntity, 'profile')
       .where(
         // `(profile.pageLastVisited is not null AND profile.pageLastVisited > :staleVisitor) OR (profile.activitiesLastChecked is null AND (profile.membershipId IN (${profilesWithVideos.getQuery()}) OR profile.membershipId IN (${profilesWithRecordings.getQuery()})))`,
-        `profile.activitiesLastChecked is null OR (profile.pageLastVisited is not null AND profile.pageLastVisited > :staleVisitor)`,
+        // `profile.activitiesLastChecked is null OR (profile.pageLastVisited is not null AND profile.pageLastVisited > :staleVisitor)`,
+        `profile.pageLastVisited is not null AND profile.pageLastVisited > :staleVisitor`,
         {
           staleVisitor,
         },
       )
       .orderBy('profile.activitiesLastChecked', 'ASC', 'NULLS FIRST')
-      .addOrderBy('profile.pageLastVisited', 'ASC', 'NULLS LAST')
+      // .addOrderBy('profile.pageLastVisited', 'ASC', 'NULLS LAST')
       .take(5)
       .getMany()
       .catch(e => {
