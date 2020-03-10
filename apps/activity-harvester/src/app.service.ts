@@ -10,6 +10,7 @@ import {
   getPostGameCarnageReport,
   DestinyActivityHistoryResults,
   DestinyProfileResponse,
+  DestinyPostGameCarnageReportData,
 } from 'bungie-api-ts/destiny2';
 import { BungieService } from '@services/shared-services/bungie/bungie.service';
 import { PgcrEntity } from '@services/shared-services/bungie/pgcr.entity';
@@ -52,8 +53,8 @@ export class AppService {
       .createQueryBuilder(DestinyProfileEntity, 'profile')
       .where(
         // `(profile.pageLastVisited is not null AND profile.pageLastVisited > :staleVisitor) OR (profile.activitiesLastChecked is null AND (profile.membershipId IN (${profilesWithVideos.getQuery()}) OR profile.membershipId IN (${profilesWithRecordings.getQuery()})))`,
-        // `profile.activitiesLastChecked is null OR (profile.pageLastVisited is not null AND profile.pageLastVisited > :staleVisitor)`,
-        `profile.pageLastVisited is not null AND profile.pageLastVisited > :staleVisitor`,
+        `profile.activitiesLastChecked is null OR (profile.pageLastVisited is not null AND profile.pageLastVisited > :staleVisitor)`,
+        // `profile.pageLastVisited is not null AND profile.pageLastVisited > :staleVisitor`,
         {
           staleVisitor,
         },
@@ -210,78 +211,80 @@ export class AppService {
         continue;
       }
 
-      const carnageReportPromise = getPostGameCarnageReport(
-        config => this.bungieService.bungieRequest(config, true),
-        {
-          activityId: activity.activityDetails.instanceId,
-        },
-      )
-        .then(pgcr => {
-          const pgcrEntity = new PgcrEntity();
-
-          pgcrEntity.instanceId = pgcr.Response.activityDetails.instanceId;
-          pgcrEntity.activityHash =
-            pgcr.Response.activityDetails.referenceId + '';
-          pgcrEntity.directorActivityHash =
-            pgcr.Response.activityDetails.directorActivityHash + '';
-          pgcrEntity.membershipType =
-            pgcr.Response.activityDetails.membershipType;
-          pgcrEntity.period = pgcr.Response.period;
-
-          pgcrEntities.push(pgcrEntity);
-
-          for (let j = 0; j < pgcr.Response.entries.length; j++) {
-            const entry = pgcr.Response.entries[j];
-            if (
-              entry.player.destinyUserInfo.membershipId &&
-              entry.player.destinyUserInfo.displayName
-            ) {
-              const pgcrEntryEntity = new PgcrEntryEntity();
-              pgcrEntryEntity.instance = pgcrEntity;
-
-              const destinyProfileEntity = new DestinyProfileEntity();
-
-              destinyProfileEntity.displayName =
-                entry.player.destinyUserInfo.displayName;
-              destinyProfileEntity.membershipId =
-                entry.player.destinyUserInfo.membershipId;
-              destinyProfileEntity.membershipType =
-                entry.player.destinyUserInfo.membershipType;
-
-              pgcrEntryEntity.profile = destinyProfileEntity;
-
-              destinyProfileEntities.push(destinyProfileEntity);
-
-              if (entry.values.team) {
-                pgcrEntryEntity.team = entry.values.team.basic.value;
-              }
-
-              let startTime = new Date(pgcrEntity.period);
-              startTime = new Date(
-                startTime.setSeconds(
-                  startTime.getSeconds() +
-                    entry.values.startSeconds.basic.value,
-                ),
-              );
-              let endTime = new Date(pgcrEntity.period);
-              endTime = new Date(
-                endTime.setSeconds(
-                  endTime.getSeconds() +
-                    entry.values.startSeconds.basic.value +
-                    entry.values.timePlayedSeconds.basic.value,
-                ),
-              );
-
-              pgcrEntryEntity.timePlayedRange = `[${startTime.toISOString()}, ${endTime.toISOString()}]`;
-              pgcrEntryEntities.push(pgcrEntryEntity);
-            }
-          }
-        })
-        .catch(() =>
+      const carnageReportPromise = new Promise(async resolve => {
+        const pgcr = await getPostGameCarnageReport(
+          config => this.bungieService.bungieRequest(config, true),
+          {
+            activityId: activity.activityDetails.instanceId,
+          },
+        ).catch(() => {
           this.logger.error(
             `Error fetching PGCR for ${activity.activityDetails.instanceId}`,
-          ),
-        );
+          );
+          return {} as ServerResponse<DestinyPostGameCarnageReportData>;
+        });
+
+        const pgcrEntity = new PgcrEntity();
+
+        pgcrEntity.instanceId = pgcr.Response.activityDetails.instanceId;
+        pgcrEntity.activityHash =
+          pgcr.Response.activityDetails.referenceId + '';
+        pgcrEntity.directorActivityHash =
+          pgcr.Response.activityDetails.directorActivityHash + '';
+        pgcrEntity.membershipType =
+          pgcr.Response.activityDetails.membershipType;
+        pgcrEntity.period = pgcr.Response.period;
+
+        pgcrEntities.push(pgcrEntity);
+
+        for (let j = 0; j < pgcr.Response.entries.length; j++) {
+          const entry = pgcr.Response.entries[j];
+          if (
+            entry.player.destinyUserInfo.membershipId &&
+            entry.player.destinyUserInfo.displayName
+          ) {
+            const pgcrEntryEntity = new PgcrEntryEntity();
+            pgcrEntryEntity.instance = pgcrEntity;
+
+            const destinyProfileEntity = new DestinyProfileEntity();
+
+            destinyProfileEntity.displayName =
+              entry.player.destinyUserInfo.displayName;
+            destinyProfileEntity.membershipId =
+              entry.player.destinyUserInfo.membershipId;
+            destinyProfileEntity.membershipType =
+              entry.player.destinyUserInfo.membershipType;
+
+            pgcrEntryEntity.profile = destinyProfileEntity;
+
+            destinyProfileEntities.push(destinyProfileEntity);
+
+            if (entry.values.team) {
+              pgcrEntryEntity.team = entry.values.team.basic.value;
+            }
+
+            let startTime = new Date(pgcrEntity.period);
+            startTime = new Date(
+              startTime.setSeconds(
+                startTime.getSeconds() + entry.values.startSeconds.basic.value,
+              ),
+            );
+            let endTime = new Date(pgcrEntity.period);
+            endTime = new Date(
+              endTime.setSeconds(
+                endTime.getSeconds() +
+                  entry.values.startSeconds.basic.value +
+                  entry.values.timePlayedSeconds.basic.value,
+              ),
+            );
+
+            pgcrEntryEntity.timePlayedRange = `[${startTime.toISOString()}, ${endTime.toISOString()}]`;
+            pgcrEntryEntities.push(pgcrEntryEntity);
+          }
+        }
+
+        resolve();
+      });
 
       promisesOfCarnage.push(carnageReportPromise);
     }
