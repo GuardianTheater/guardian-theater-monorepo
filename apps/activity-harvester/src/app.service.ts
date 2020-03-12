@@ -24,7 +24,7 @@ export class AppService {
 
   constructor(
     private readonly bungieService: BungieService,
-    private readonly logger: Logger,
+    public readonly logger: Logger,
   ) {
     this.logger.setContext('ActivityHarvester');
   }
@@ -104,7 +104,7 @@ export class AppService {
       });
 
     const skipActivities = new Set(
-      existingEntries.map(entry => entry.instance.instanceId),
+      existingEntries.map(entry => entry?.instance?.instanceId),
     );
 
     const profileResponse: ServerResponse<DestinyProfileResponse> = await getProfile(
@@ -156,7 +156,7 @@ export class AppService {
         });
 
       if (!history.Response || !history.Response.activities) {
-        return;
+        continue;
       }
       for (let k = 0; k < history.Response.activities.length; k++) {
         const activity = history.Response.activities[k];
@@ -362,7 +362,6 @@ export class AppService {
           this.logger.log(`Saved ${uniqueEntries.length} Entries.`),
         );
     }
-
     const profileEntity = new DestinyProfileEntity();
     profileEntity.membershipId = loadedProfile.userInfo.membershipId;
     profileEntity.displayName = loadedProfile.userInfo.displayName;
