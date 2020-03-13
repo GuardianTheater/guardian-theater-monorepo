@@ -50,6 +50,8 @@ settings:
     value: 'value'
   - name: JWT_SECRET_KEY
     value: 'value'
+  - name: ORIGIN
+    value: 'value'
 imagePullSecrets: []
 nameOverride: ''
 

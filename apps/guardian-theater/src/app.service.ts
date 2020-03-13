@@ -8,11 +8,14 @@ import {
   getProfile,
   DestinyComponentType,
   DestinyProfileResponse,
+  getLinkedProfiles,
+  DestinyLinkedProfilesResponse,
 } from 'bungie-api-ts/destiny2';
 import { BungieService } from '@services/shared-services';
 import upsert from '@services/shared-services/helpers/typeorm-upsert';
 import { AccountLinkEntity } from '@services/shared-services/helpers/account-link.entity';
 import { PgcrEntity } from '@services/shared-services/bungie/pgcr.entity';
+import { BungieProfileEntity } from '@services/shared-services/bungie/bungie-profile.entity';
 
 @Injectable()
 export class AppService {
@@ -25,76 +28,132 @@ export class AppService {
     membershipType: BungieMembershipType,
     destinyMembershipId: string,
   ) {
-    const fetchedProfile = await getProfile(
-      config => this.bungieService.bungieRequest(config),
-      {
-        membershipType,
-        destinyMembershipId,
-        components: [DestinyComponentType.Profiles],
-      },
-    ).catch(() => {
-      this.logger.error(`Error Fetching Profile - ${destinyMembershipId}`);
-      return {} as ServerResponse<DestinyProfileResponse>;
-    });
-
-    const userInfo = fetchedProfile?.Response?.profile?.data?.userInfo;
-    if (userInfo) {
-      const updateProfile = new DestinyProfileEntity();
-      updateProfile.displayName = userInfo.displayName;
-      updateProfile.membershipId = userInfo.membershipId;
-      updateProfile.membershipType = userInfo.membershipType;
-      updateProfile.pageLastVisited = new Date().toISOString();
-      await upsert(
-        DestinyProfileEntity,
-        updateProfile,
-        'membershipId',
-      ).catch(() =>
-        this.logger.error(
-          `Error Saving Profile - ${updateProfile.membershipId}`,
-        ),
-      );
-    }
-
-    const profile = await getConnection()
-      .createQueryBuilder(DestinyProfileEntity, 'profile')
-      .leftJoinAndSelect('profile.bnetProfile', 'bnetProfile')
-      .leftJoinAndSelect('bnetProfile.profiles', 'profiles')
-      .where('profile.membershipId = :destinyMembershipId', {
-        destinyMembershipId,
-      })
-      .getOne();
-
     const membershipIds = [];
+    let profile;
 
-    if (profile?.bnetProfile?.profiles.length) {
-      const profilesToSave = [];
-      for (let i = 0; i < profile.bnetProfile.profiles.length; i++) {
-        const linkedProfile = profile.bnetProfile.profiles[i];
-        membershipIds.push(linkedProfile.membershipId);
+    if (membershipType === 254) {
+      const linkedProfiles = await getLinkedProfiles(
+        config => this.bungieService.bungieRequest(config),
+        {
+          membershipId: destinyMembershipId,
+          membershipType: membershipType,
+          getAllMemberships: true,
+        },
+      ).catch(() => {
+        this.logger.error(
+          `Error fetching linked profiles for ${membershipType}-${destinyMembershipId}`,
+        );
 
-        if (linkedProfile.membershipId !== destinyMembershipId) {
-          const updateProfile = new DestinyProfileEntity();
-          updateProfile.displayName = linkedProfile.displayName;
-          updateProfile.membershipId = linkedProfile.membershipId;
-          updateProfile.membershipType = linkedProfile.membershipType;
-          updateProfile.pageLastVisited = new Date().toISOString();
-          profilesToSave.push(updateProfile);
+        return {} as ServerResponse<DestinyLinkedProfilesResponse>;
+      });
+
+      if (linkedProfiles.Response?.bnetMembership) {
+        const bnetProfile = new BungieProfileEntity();
+        bnetProfile.membershipId =
+          linkedProfiles.Response.bnetMembership.membershipId;
+        bnetProfile.membershipType =
+          linkedProfiles.Response.bnetMembership.membershipType;
+        const childProfiles = [];
+        let dateLastPlayed;
+        for (let j = 0; j < linkedProfiles.Response.profiles.length; j++) {
+          const linkedProfile = linkedProfiles.Response.profiles[j];
+          const childProfile = new DestinyProfileEntity();
+          childProfile.bnetProfile = bnetProfile;
+          childProfile.bnetProfileChecked = new Date().toISOString();
+          childProfile.displayName = linkedProfile.displayName;
+          childProfile.membershipId = linkedProfile.membershipId;
+          childProfile.membershipType = linkedProfile.membershipType;
+          childProfile.pageLastVisited = new Date().toISOString();
+          childProfiles.push(childProfile);
+
+          membershipIds.push(linkedProfile.membershipId);
+          if (
+            !profile ||
+            new Date(linkedProfile.dateLastPlayed) > dateLastPlayed
+          ) {
+            profile = childProfile;
+            dateLastPlayed = new Date(linkedProfile.dateLastPlayed);
+          }
         }
-      }
-      if (profilesToSave.length) {
         await upsert(
           DestinyProfileEntity,
-          profilesToSave,
+          childProfiles,
           'membershipId',
         ).catch(() =>
-          this.logger.error(
-            `Error Saving ${profilesToSave.length} Linked Profiles`,
-          ),
+          this.logger.error(`Error Saving ${childProfiles.length} Profiles`),
         );
       }
     } else {
-      membershipIds.push(destinyMembershipId);
+      const fetchedProfile = await getProfile(
+        config => this.bungieService.bungieRequest(config),
+        {
+          membershipType,
+          destinyMembershipId,
+          components: [DestinyComponentType.Profiles],
+        },
+      ).catch(() => {
+        this.logger.error(`Error Fetching Profile - ${destinyMembershipId}`);
+        return {} as ServerResponse<DestinyProfileResponse>;
+      });
+
+      const userInfo = fetchedProfile?.Response?.profile?.data?.userInfo;
+      if (userInfo) {
+        const updateProfile = new DestinyProfileEntity();
+        updateProfile.displayName = userInfo.displayName;
+        updateProfile.membershipId = userInfo.membershipId;
+        updateProfile.membershipType = userInfo.membershipType;
+        updateProfile.pageLastVisited = new Date().toISOString();
+        await upsert(
+          DestinyProfileEntity,
+          updateProfile,
+          'membershipId',
+        ).catch(() =>
+          this.logger.error(
+            `Error Saving Profile - ${updateProfile.membershipId}`,
+          ),
+        );
+      }
+
+      profile = await getConnection()
+        .createQueryBuilder(DestinyProfileEntity, 'profile')
+        .leftJoinAndSelect('profile.bnetProfile', 'bnetProfile')
+        .leftJoinAndSelect('bnetProfile.profiles', 'profiles')
+        .where('profile.membershipId = :destinyMembershipId', {
+          destinyMembershipId,
+        })
+        .getOne();
+
+      if (profile?.bnetProfile?.profiles.length) {
+        const profilesToSave = [];
+        for (let i = 0; i < profile.bnetProfile.profiles.length; i++) {
+          const linkedProfile = profile.bnetProfile.profiles[i];
+          membershipIds.push(linkedProfile.membershipId);
+
+          if (linkedProfile.membershipId !== destinyMembershipId) {
+            const updateProfile = new DestinyProfileEntity();
+            updateProfile.displayName = linkedProfile.displayName;
+            updateProfile.membershipId = linkedProfile.membershipId;
+            updateProfile.membershipType = linkedProfile.membershipType;
+            updateProfile.pageLastVisited = new Date().toISOString();
+            profilesToSave.push(updateProfile);
+          }
+        }
+        if (profilesToSave.length) {
+          await upsert(
+            DestinyProfileEntity,
+            profilesToSave,
+            'membershipId',
+          ).catch(() =>
+            this.logger.error(
+              `Error Saving ${profilesToSave.length} Linked Profiles`,
+            ),
+          );
+        }
+      } else {
+        membershipIds.push(destinyMembershipId);
+      }
     }
+
     const membershipIdSet = new Set(membershipIds);
 
     const entries = await getConnection()
