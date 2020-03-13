@@ -1,12 +1,12 @@
 import { Injectable, HttpService } from '@nestjs/common';
-import { HttpClientConfig } from 'bungie-api-ts/http';
 import { map } from 'rxjs/operators';
+import { AxiosRequestConfig } from 'axios';
 
 @Injectable()
 export class BungieService {
   constructor(private readonly httpService: HttpService) {}
 
-  async bungieRequest(config: HttpClientConfig, stats?: boolean) {
+  async bungieRequest(config: AxiosRequestConfig, stats?: boolean) {
     const requestConfig = {
       ...config,
       headers: {

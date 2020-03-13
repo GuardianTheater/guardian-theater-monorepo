@@ -33,7 +33,7 @@ export class AppController {
     @Param('membershipId') membershipId: string,
   ) {
     return this.appService.getAllEncounteredVideos(
-      membershipType,
+      parseInt((membershipType as unknown) as string, 10),
       membershipId,
     );
   }

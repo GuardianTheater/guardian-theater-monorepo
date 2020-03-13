@@ -16,11 +16,9 @@ export class BungieStrategy extends PassportStrategy(Strategy, 'bungie') {
   async validate(
     accessToken: string,
     refreshToken: string,
-    profile,
+    profile: { membershipId: string },
     done: Function,
   ) {
-    console.log(accessToken, refreshToken, profile);
-    this.userProfile(accessToken, res => console.log(res));
     try {
       const jwt: string = await this.authService.validateOAuthLogin(
         profile,
@@ -28,11 +26,11 @@ export class BungieStrategy extends PassportStrategy(Strategy, 'bungie') {
       );
       const user = {
         jwt,
+        refreshToken,
       };
 
       done(null, user);
     } catch (err) {
-      // console.log(err)
       done(err, false);
     }
   }
