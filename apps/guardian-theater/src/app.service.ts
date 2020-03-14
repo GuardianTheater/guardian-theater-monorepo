@@ -239,6 +239,7 @@ export class AppService {
         displayName: string;
         membershipId: string;
         membershipType: number;
+        bnetMembershipId: string;
         team: number;
         linkName: string;
         linkId?: string | number;
@@ -257,6 +258,7 @@ export class AppService {
           membershipId: entryProfile.membershipId,
           membershipType: entryProfile.membershipType,
           team: instanceEntryResponse.team,
+          bnetMembershipId: entryProfile.bnetProfile?.membershipId,
         };
         if (membershipIdSet.has(entryProfile.membershipId)) {
           instanceEntry.team = 16;

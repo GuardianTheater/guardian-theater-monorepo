@@ -5,9 +5,11 @@ import {
   UseInterceptors,
   CacheInterceptor,
   CacheTTL,
+  UseGuards,
 } from '@nestjs/common';
 import { AppService } from './app.service';
 import { BungieMembershipType } from 'bungie-api-ts/user';
+import { AuthGuard } from '@nestjs/passport';
 
 @Controller()
 @UseInterceptors(CacheInterceptor)
@@ -42,5 +44,11 @@ export class AppController {
   @CacheTTL(300)
   getClipsForActivity(@Param('instanceId') instanceId: string) {
     return this.appService.getVideosForInstance(instanceId);
+  }
+
+  @Get('review/:linkId')
+  @UseGuards(AuthGuard('jwt'))
+  protectedResource() {
+    return 'JWT is working!';
   }
 }
