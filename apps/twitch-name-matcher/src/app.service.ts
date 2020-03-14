@@ -102,7 +102,11 @@ export class AppService {
 
       const noSpaceLowercaseName = destinyProfileEntity.displayName
         .replace(/\s/g, '')
-        .toLocaleLowerCase();
+        .toLocaleLowerCase()
+        .replace('twitch.tv/', '')
+        .replace('t.tv/', '')
+        .replace('twitch/', '')
+        .replace('ttv/', '');
 
       for (let j = 0; j < results.length; j++) {
         const result = results[j];
