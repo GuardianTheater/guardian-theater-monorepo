@@ -31,9 +31,7 @@ export class AppService {
   async linkBungieAccounts() {
     const profilesToCheck = await getConnection()
       .createQueryBuilder(DestinyProfileEntity, 'profile')
-      .where(
-        'profile.bnetProfileChecked is null AND profile.membershipType > 0',
-      )
+      .orderBy('profile.bnetProfileChecked', 'ASC', 'NULLS FIRST')
       .take(100)
       .getMany()
       .catch(() => {
@@ -83,7 +81,6 @@ export class AppService {
 
           profile.bnetProfile = bnetProfile;
           bungieProfiles.push(bnetProfile);
-          destinyProfiles.push(profile);
 
           for (let j = 0; j < linkedProfiles.Response.profiles.length; j++) {
             const linkedProfile = linkedProfiles.Response.profiles[j];
@@ -98,6 +95,7 @@ export class AppService {
             }
           }
         }
+        destinyProfiles.push(profile);
 
         resolve();
       });
