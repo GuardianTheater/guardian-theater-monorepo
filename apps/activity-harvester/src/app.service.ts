@@ -34,37 +34,18 @@ export class AppService {
       new Date().setDate(new Date().getDate() - 10),
     ).toISOString();
 
-    // const profilesWithVideos = getConnection()
-    //   .createQueryBuilder(DestinyProfileEntity, 'profile')
-    //   .innerJoin('profile.accountLinks', 'accountLinks')
-    //   .innerJoin('accountLinks.twitchAccount', 'twitchAccount')
-    //   .innerJoin('twitchAccount.videos', 'videos')
-    //   .select('profile.membershipId');
-
-    // const profilesWithRecordings = getConnection()
-    //   .createQueryBuilder(DestinyProfileEntity, 'profile')
-    //   .innerJoin('profile.accountLinks', 'accountLinks')
-    //   .innerJoin('accountLinks.mixerAccount', 'mixerAccount')
-    //   .innerJoin('mixerAccount.channel', 'channel')
-    //   .innerJoin('channel.recordings', 'recordings')
-    //   .select('profile.membershipId');
-
     const profilesToHarvest = await getConnection()
       .createQueryBuilder(DestinyProfileEntity, 'profile')
       .where(
-        // `(profile.pageLastVisited is not null AND profile.pageLastVisited > :staleVisitor) OR (profile.activitiesLastChecked is null AND (profile.membershipId IN (${profilesWithVideos.getQuery()}) OR profile.membershipId IN (${profilesWithRecordings.getQuery()})))`,
-        // `profile.activitiesLastChecked is null OR (profile.pageLastVisited is not null AND profile.pageLastVisited > :staleVisitor)`,
         `profile.pageLastVisited is not null AND profile.pageLastVisited > :staleVisitor`,
         {
           staleVisitor,
         },
       )
       .orderBy('profile.activitiesLastChecked', 'ASC', 'NULLS FIRST')
-      // .addOrderBy('profile.pageLastVisited', 'ASC', 'NULLS LAST')
       .take(5)
       .getMany()
-      .catch(e => {
-        this.logger.error(e);
+      .catch(() => {
         this.logger.error(`Error fetching Destiny Profiles from database`);
         return [] as DestinyProfileEntity[];
       });
