@@ -1,7 +1,6 @@
 import { Injectable, Logger } from '@nestjs/common';
 import { getConnection } from 'typeorm';
 import { XboxAccountEntity } from '@services/shared-services/xbox/xbox-account.entity';
-import { Interval } from '@nestjs/schedule';
 import { XboxService } from '@services/shared-services';
 import { XboxClipEntity } from '@services/shared-services/xbox/xbox-clip.entity';
 import upsert from '@services/shared-services/helpers/typeorm-upsert';
@@ -15,16 +14,9 @@ export class AppService {
 
   constructor(
     private readonly xboxService: XboxService,
-    private readonly logger: Logger,
+    public readonly logger: Logger,
   ) {
     this.logger.setContext('XboxClipFetcher');
-  }
-
-  @Interval(60000)
-  handleInterval() {
-    this.fetchXboxClips().catch(() =>
-      this.logger.error(`Issue running fetchXboxClips`),
-    );
   }
 
   async fetchXboxClips() {
@@ -35,7 +27,7 @@ export class AppService {
     const accountsToCheck = await getConnection()
       .createQueryBuilder(XboxAccountEntity, 'xboxAccount')
       .orderBy('xboxAccount.lastClipCheck', 'ASC', 'NULLS FIRST')
-      .take(100)
+      .take(15)
       .getMany()
       .catch(() => {
         this.logger.error(`Error fetching Xbox Accounts from database`);
@@ -51,7 +43,7 @@ export class AppService {
     const xboxClipEntitiesToSave: XboxClipEntity[] = [];
     const xboxClipEntitiesToDelete: XboxClipEntity[] = [];
 
-    const xboxClipFetchers: Promise<any>[] = [];
+    let failCount = 0;
 
     for (let i = 0; i < accountsToCheck.length; i++) {
       const loadedAccount = accountsToCheck[i];
@@ -62,83 +54,69 @@ export class AppService {
 
       xboxAccountEntities.push(xboxAccount);
 
-      const clipFetcher = new Promise(async resolve => {
-        const res: AxiosResponse<XboxGameClipsResponse> = await this.xboxService
-          .fetchConsoleDestiny2ClipsForGamertag(xboxAccount.gamertag)
+      const res: AxiosResponse<XboxGameClipsResponse> = await this.xboxService
+        .fetchConsoleDestiny2ClipsForGamertag(xboxAccount.gamertag)
+        .catch(() => {
+          this.logger.error(
+            `Error fetching Xbox Clips for ${xboxAccount.gamertag}`,
+          );
+          return {} as AxiosResponse;
+        });
+
+      const toSave: XboxClipEntity[] = [];
+      if (res.data?.status !== 'success') {
+        failCount++;
+      }
+
+      if (res.data?.status === 'success' && res.data?.gameClips) {
+        for (let j = 0; j < res.data.gameClips.length; j++) {
+          const clip = res.data.gameClips[j];
+          const endStamp = new Date(clip.dateRecorded);
+          if (endStamp < dateCutOff) {
+            break;
+          }
+          const xboxClipEntity = new XboxClipEntity();
+          xboxClipEntity.gameClipId = clip.gameClipId;
+          xboxClipEntity.scid = clip.scid;
+          xboxClipEntity.xuid = clip.xuid;
+          xboxClipEntity.xboxAccount = xboxAccount;
+          xboxClipEntity.thumbnailUri = clip.thumbnails.pop().uri;
+          xboxClipEntity.dateRecordedRange = `[${
+            clip.dateRecorded
+          }, ${endStamp.toISOString()}]`;
+
+          toSave.push(xboxClipEntity);
+          xboxClipEntitiesToSave.push(xboxClipEntity);
+        }
+      }
+
+      if (res.data?.status === 'success' && xboxAccount.gamertag) {
+        const existingClips = await getConnection()
+          .createQueryBuilder(XboxClipEntity, 'xboxClip')
+          .where('xboxClip.xboxAccount = :gamertag', {
+            gamertag: xboxAccount.gamertag,
+          })
+          .getMany()
           .catch(() => {
-            this.logger.error(
-              `Error fetching Xbox Clips for ${xboxAccount.gamertag}`,
-            );
-            return {} as AxiosResponse;
+            this.logger.error(`Error fetching exisitng clips from database.`);
+            return [] as XboxClipEntity[];
           });
-
-        const toSave: XboxClipEntity[] = [];
-        if (res.data?.gameClips) {
-          for (let j = 0; j < res.data.gameClips.length; j++) {
-            const clip = res.data.gameClips[j];
-            const endStamp = new Date(clip.dateRecorded);
-            if (endStamp < dateCutOff) {
-              break;
+        if (existingClips.length) {
+          const newClipIds = new Set(toSave.map(clip => clip.gameClipId));
+          for (let j = 0; j < existingClips.length; j++) {
+            const existingClip = existingClips[j];
+            if (newClipIds.has(existingClip.gameClipId)) {
+              continue;
             }
-            const xboxClipEntity = new XboxClipEntity();
-            xboxClipEntity.gameClipId = clip.gameClipId;
-            xboxClipEntity.scid = clip.scid;
-            xboxClipEntity.xuid = clip.xuid;
-            xboxClipEntity.xboxAccount = xboxAccount;
-            xboxClipEntity.thumbnailUri = clip.thumbnails.pop().uri;
-            xboxClipEntity.dateRecordedRange = `[${
-              clip.dateRecorded
-            }, ${endStamp.toISOString()}]`;
-
-            toSave.push(xboxClipEntity);
-            xboxClipEntitiesToSave.push(xboxClipEntity);
+            xboxClipEntitiesToDelete.push(existingClip);
           }
         }
-
-        if (xboxAccount.gamertag) {
-          const existingClips = await getConnection()
-            .createQueryBuilder(XboxClipEntity, 'xboxClip')
-            .where('xboxClip.xboxAccount = :gamertag', {
-              gamertag: xboxAccount.gamertag,
-            })
-            .getMany()
-            .catch(() => {
-              this.logger.error(`Error fetching exisitng clips from database.`);
-              return [] as XboxClipEntity[];
-            });
-          if (existingClips.length) {
-            const newClipIds = new Set(toSave.map(clip => clip.gameClipId));
-            for (let j = 0; j < existingClips.length; j++) {
-              const existingClip = existingClips[j];
-              if (newClipIds.has(existingClip.gameClipId)) {
-                continue;
-              }
-              xboxClipEntitiesToDelete.push(existingClip);
-            }
-          }
-        }
-
-        resolve();
-      });
-
-      xboxClipFetchers.push(clipFetcher);
+      }
+      await new Promise(resolve => setTimeout(resolve, 1000));
     }
 
-    if (xboxClipFetchers.length) {
-      this.logger.log(
-        `Fetching Xbox Clips for ${xboxClipFetchers.length} profiles.`,
-      );
-      await Promise.all(xboxClipFetchers)
-        .catch(() =>
-          this.logger.error(
-            `Error fetching Xbox Clips for ${xboxClipFetchers.length} profiles.`,
-          ),
-        )
-        .finally(() =>
-          this.logger.log(
-            `Fetched Xbox Clips for ${xboxClipFetchers.length} profiles.`,
-          ),
-        );
+    if (failCount > 7) {
+      await new Promise(resolve => setTimeout(resolve, 15000));
     }
 
     const uniqueXboxAccountEntities = uniqueEntityArray(
