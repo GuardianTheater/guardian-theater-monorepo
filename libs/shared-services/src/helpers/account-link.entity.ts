@@ -5,6 +5,7 @@ import {
   Column,
   OneToMany,
   PrimaryColumn,
+  Index,
 } from 'typeorm';
 import { DestinyProfileEntity } from '../bungie/destiny-profile.entity';
 import { TwitchAccountEntity } from '../twitch/twitch-account.entity';
@@ -24,13 +25,17 @@ export class AccountLinkEntity {
   @JoinColumn({
     name: 'destinyProfile',
   })
-  destinyProfile?: DestinyProfileEntity;
+  @Index()
+  destinyProfile: DestinyProfileEntity;
 
   @Column()
   linkType: 'bungiePartner' | 'nameMatch' | 'authentication' | 'ocr';
 
   @Column()
   accountType: 'xbox' | 'mixer' | 'twitch';
+
+  @Column({ nullable: true })
+  rejected?: boolean;
 
   @ManyToOne(() => TwitchAccountEntity, {
     nullable: true,

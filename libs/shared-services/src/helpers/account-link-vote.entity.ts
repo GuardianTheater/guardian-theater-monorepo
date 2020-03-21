@@ -1,4 +1,4 @@
-import { Entity, ManyToOne, JoinColumn, Column } from 'typeorm';
+import { Entity, ManyToOne, JoinColumn, Column, Index } from 'typeorm';
 import { BungieProfileEntity } from '../bungie/bungie-profile.entity';
 import { AccountLinkEntity } from './account-link.entity';
 
@@ -14,6 +14,7 @@ export class AccountLinkVoteEntity {
   @JoinColumn({
     name: 'bnetProfile',
   })
+  @Index()
   bnetProfile: BungieProfileEntity;
 
   @ManyToOne(
@@ -26,6 +27,7 @@ export class AccountLinkVoteEntity {
   @JoinColumn({
     name: 'link',
   })
+  @Index()
   link: AccountLinkEntity;
 
   @Column()

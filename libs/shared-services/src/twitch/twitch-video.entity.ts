@@ -1,9 +1,17 @@
-import { Entity, PrimaryColumn, ManyToOne, Column, JoinColumn } from 'typeorm';
+import {
+  Entity,
+  PrimaryColumn,
+  ManyToOne,
+  Column,
+  JoinColumn,
+  Index,
+} from 'typeorm';
 import { TwitchAccountEntity } from './twitch-account.entity';
 
 @Entity()
 export class TwitchVideoEntity {
   @PrimaryColumn()
+  @Index({ unique: true })
   id: string;
 
   @ManyToOne(
@@ -13,9 +21,11 @@ export class TwitchVideoEntity {
   @JoinColumn({
     name: 'user',
   })
+  @Index()
   user: TwitchAccountEntity;
 
   @Column('tstzrange')
+  @Index()
   durationRange: string;
 
   @Column()

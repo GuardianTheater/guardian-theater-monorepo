@@ -1,4 +1,4 @@
-import { Entity, PrimaryColumn, Column, OneToMany } from 'typeorm';
+import { Entity, PrimaryColumn, Column, OneToMany, Index } from 'typeorm';
 import { DestinyProfileEntity } from './destiny-profile.entity';
 import { BungieMembershipType } from 'bungie-api-ts/user';
 import { AccountLinkVoteEntity } from '../helpers/account-link-vote.entity';
@@ -6,6 +6,7 @@ import { AccountLinkVoteEntity } from '../helpers/account-link-vote.entity';
 @Entity()
 export class BungieProfileEntity {
   @PrimaryColumn()
+  @Index({ unique: true })
   membershipId: string;
 
   @Column()

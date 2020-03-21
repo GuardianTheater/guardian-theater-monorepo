@@ -79,11 +79,11 @@ export class AppService {
           recordingEntity.expiresAt = recording.expiresAt;
           recordingEntity.id = recording.id;
           recordingEntity.title = recording.name;
-          recordingEntity.durationRange = `[${recording.createdAt},${new Date(
+          recordingEntity.durationRange = `[${new Date(
             new Date(recording.createdAt).setSeconds(
-              new Date(recording.createdAt).getSeconds() + recording.duration,
+              new Date(recording.createdAt).getSeconds() - recording.duration,
             ),
-          ).toISOString()}]`;
+          ).toISOString()},${recording.createdAt}]`;
 
           for (let k = 0; k < recording.vods.length; k++) {
             const vod = recording.vods[k];

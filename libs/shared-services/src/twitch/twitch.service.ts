@@ -67,6 +67,17 @@ export class TwitchService {
       .toPromise();
   }
 
+  async getUserFromId(id: string): Promise<AxiosResponse<GetUsersResponse>> {
+    const headers = await this.authenticateTwitch();
+    return this.httpService
+      .request({
+        url: `https://api.twitch.tv/helix/users?id=${id}`,
+        method: 'get',
+        headers,
+      })
+      .toPromise();
+  }
+
   async getClips(broadcaster_id: string) {
     const headers = await this.authenticateTwitch();
     const dateCutOff = new Date(

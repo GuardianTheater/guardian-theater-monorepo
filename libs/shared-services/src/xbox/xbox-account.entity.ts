@@ -1,9 +1,10 @@
-import { Entity, PrimaryColumn, Column, OneToMany } from 'typeorm';
+import { Entity, PrimaryColumn, Column, OneToMany, Index } from 'typeorm';
 import { XboxClipEntity } from './xbox-clip.entity';
 
 @Entity()
 export class XboxAccountEntity {
   @PrimaryColumn()
+  @Index({ unique: true })
   gamertag: string;
 
   @OneToMany(
