@@ -1,9 +1,10 @@
-import { Entity, PrimaryColumn, OneToMany, Column } from 'typeorm';
+import { Entity, PrimaryColumn, OneToMany, Column, Index } from 'typeorm';
 import { MixerRecordingEntity } from './mixer-recording.entity';
 
 @Entity()
 export class MixerChannelEntity {
   @PrimaryColumn()
+  @Index({ unique: true })
   id: number;
 
   @Column()

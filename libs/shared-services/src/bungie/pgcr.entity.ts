@@ -1,10 +1,11 @@
-import { Entity, PrimaryColumn, Column, OneToMany } from 'typeorm';
+import { Entity, PrimaryColumn, Column, OneToMany, Index } from 'typeorm';
 import { BungieMembershipType } from 'bungie-api-ts/user';
 import { PgcrEntryEntity } from './pgcr-entry.entity';
 
 @Entity()
 export class PgcrEntity {
   @PrimaryColumn()
+  @Index({ unique: true })
   instanceId: string;
 
   @Column()

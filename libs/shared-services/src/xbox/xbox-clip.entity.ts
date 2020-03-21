@@ -1,9 +1,17 @@
-import { Entity, PrimaryColumn, Column, ManyToOne, JoinColumn } from 'typeorm';
+import {
+  Entity,
+  PrimaryColumn,
+  Column,
+  ManyToOne,
+  JoinColumn,
+  Index,
+} from 'typeorm';
 import { XboxAccountEntity } from './xbox-account.entity';
 
 @Entity()
 export class XboxClipEntity {
   @PrimaryColumn()
+  @Index({ unique: true })
   gameClipId: string;
 
   @Column()
@@ -20,9 +28,11 @@ export class XboxClipEntity {
     },
   )
   @JoinColumn({ name: 'xboxAccount' })
+  @Index()
   xboxAccount: XboxAccountEntity;
 
   @Column('tstzrange')
+  @Index()
   dateRecordedRange: string;
 
   @Column()

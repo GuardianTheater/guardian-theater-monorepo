@@ -1,9 +1,10 @@
-import { PrimaryColumn, Entity, Column, OneToMany } from 'typeorm';
+import { PrimaryColumn, Entity, Column, OneToMany, Index } from 'typeorm';
 import { TwitchVideoEntity } from './twitch-video.entity';
 
 @Entity()
 export class TwitchAccountEntity {
   @PrimaryColumn()
+  @Index({ unique: true })
   id: string;
 
   @Column()

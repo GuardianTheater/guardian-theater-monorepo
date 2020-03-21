@@ -1,4 +1,4 @@
-import { Entity, ManyToOne, Column, JoinColumn } from 'typeorm';
+import { Entity, ManyToOne, Column, JoinColumn, Index } from 'typeorm';
 import { PgcrEntity } from './pgcr.entity';
 import { DestinyProfileEntity } from './destiny-profile.entity';
 
@@ -14,6 +14,7 @@ export class PgcrEntryEntity {
   @JoinColumn({
     name: 'profile',
   })
+  @Index()
   profile: DestinyProfileEntity;
 
   @ManyToOne(
@@ -26,6 +27,7 @@ export class PgcrEntryEntity {
   @JoinColumn({
     name: 'instance',
   })
+  @Index()
   instance: PgcrEntity;
 
   @Column('tstzrange')

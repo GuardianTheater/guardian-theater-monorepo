@@ -8,11 +8,12 @@ import {
   Post,
   Body,
   HttpService,
+  Query,
 } from '@nestjs/common';
-import { AuthGuard } from '@nestjs/passport';
 import * as qs from 'querystring';
 import { AxiosResponse } from 'axios';
 import { AuthService } from './auth.service';
+import { BungieAuthGuard } from './bungie-auth.guard';
 
 @Controller('auth')
 export class AuthController {
@@ -22,13 +23,13 @@ export class AuthController {
   ) {}
 
   @Get('bungie')
-  @UseGuards(AuthGuard('bungie'))
+  @UseGuards(BungieAuthGuard)
   bungieLogin() {
     //
   }
 
   @Get('bungie/callback')
-  @UseGuards(AuthGuard('bungie'))
+  @UseGuards(BungieAuthGuard)
   bungieLoginCallback(@Req() req, @Res() res) {
     const jwt: string = req.user.jwt;
     const refreshToken: string = req.user.refreshToken;
@@ -41,11 +42,42 @@ export class AuthController {
     else res.redirect(`${process.env.ORIGIN}/login/failure`);
   }
 
-  @Get('protected')
-  @UseGuards(AuthGuard('jwt'))
-  protectedResource() {
-    return 'JWT is working!';
+  @Get('twitch')
+  twitchLogin(@Req() req, @Res() res) {
+    res.redirect(
+      `https://id.twitch.tv/oauth2/authorize?client_id=${process.env.TWITCH_CLIENT_ID}&redirect_uri=${process.env.BASE_URL}/auth/twitch/callback&response_type=code`,
+    );
   }
+
+  @Get('twitch/callback')
+  async twitchLoginCallback(@Query('code') code, @Req() req, @Res() res) {
+    const jwt: string = await this.authService.getTwitchToken(code);
+    if (jwt)
+      res.redirect(
+        `${process.env.ORIGIN}/login/success/${encodeURIComponent(jwt)}/null`,
+      );
+    else res.redirect(`${process.env.ORIGIN}/login/failure`);
+  }
+
+  // @Get('mixer')
+  // mixerLogin(@Req() req, @Res() res) {
+  //   res.redirect(
+  //     `https://mixer.com/oauth/authorize?client_id=${process.env.MIXER_CLIENT_ID}&redirect_uri=https://api.guardian.theater/auth/mixer/callback&response_type=code`,
+  //   );
+  // }
+
+  // @Get('mixer/callback')
+  // async mixerLoginCallback(@Query('code') code, @Req() req, @Res() res) {
+  //   const jwt: string = await this.authService.getMixerToken(code);
+  //   // const refreshToken: string = req.user.refreshToken;
+  //   // if (jwt)
+  //   //   res.redirect(
+  //   //     `${process.env.ORIGIN}/login/success/${encodeURIComponent(
+  //   //       jwt,
+  //   //     )}/${encodeURIComponent(refreshToken)}`,
+  //   //   );
+  //   // else res.redirect(`${process.env.ORIGIN}/login/failure`);
+  // }
 
   @Post('bungie/refresh')
   async refreshBungieJwt(@Body() refreshBungieDto: { refreshToken: string }) {
@@ -68,7 +100,6 @@ export class AuthController {
         )
         .toPromise()
         .catch(e => {
-          console.log(e);
           return {} as AxiosResponse<any>;
         });
       const jwt: string = await this.authService.validateOAuthLogin(

@@ -1,5 +1,5 @@
 import { Injectable, Logger } from '@nestjs/common';
-import { getConnection } from 'typeorm';
+import { getConnection, getRepository } from 'typeorm';
 import { DestinyProfileEntity } from '@services/shared-services/bungie/destiny-profile.entity';
 import { PgcrEntryEntity } from '@services/shared-services/bungie/pgcr-entry.entity';
 import { convertSecondsToTwitchDuration } from '@services/shared-services/helpers/twitch-duration-conversion';
@@ -11,17 +11,19 @@ import {
   getLinkedProfiles,
   DestinyLinkedProfilesResponse,
 } from 'bungie-api-ts/destiny2';
-import { BungieService } from '@services/shared-services';
+import { BungieService, TwitchService } from '@services/shared-services';
 import upsert from '@services/shared-services/helpers/typeorm-upsert';
 import { AccountLinkEntity } from '@services/shared-services/helpers/account-link.entity';
 import { PgcrEntity } from '@services/shared-services/bungie/pgcr.entity';
 import { BungieProfileEntity } from '@services/shared-services/bungie/bungie-profile.entity';
+import { TwitchAccountEntity } from '@services/shared-services/twitch/twitch-account.entity';
 
 @Injectable()
 export class AppService {
   constructor(
     private readonly bungieService: BungieService,
     private readonly logger: Logger,
+    private readonly twitchService: TwitchService,
   ) {}
 
   async getAllEncounteredVideos(
@@ -161,7 +163,11 @@ export class AppService {
       .leftJoinAndSelect('entry.instance', 'instance')
       .leftJoinAndSelect('instance.entries', 'entries')
       .leftJoinAndSelect('entries.profile', 'destinyProfile')
-      .leftJoinAndSelect('destinyProfile.accountLinks', 'accountLinks')
+      .leftJoinAndSelect(
+        'destinyProfile.accountLinks',
+        'accountLinks',
+        'accountLinks.rejected is null OR accountLinks.rejected != true',
+      )
       .leftJoinAndSelect('accountLinks.twitchAccount', 'twitchAccount')
       .leftJoinAndSelect(
         'twitchAccount.videos',
@@ -190,6 +196,7 @@ export class AppService {
       .leftJoinAndSelect(
         'linkedDestinyProfile.accountLinks',
         'linkedAccountLinks',
+        'linkedAccountLinks.rejected is null OR linkedAccountLinks.rejected != true',
       )
       .leftJoinAndSelect('linkedAccountLinks.xboxAccount', 'linkedXboxAccount')
       .leftJoinAndSelect(
@@ -402,7 +409,12 @@ export class AppService {
       .createQueryBuilder(PgcrEntity, 'instance')
       .leftJoinAndSelect('instance.entries', 'entries')
       .leftJoinAndSelect('entries.profile', 'destinyProfile')
-      .leftJoinAndSelect('destinyProfile.accountLinks', 'accountLinks')
+
+      .leftJoinAndSelect(
+        'destinyProfile.accountLinks',
+        'accountLinks',
+        'accountLinks.rejected is null OR accountLinks.rejected != true',
+      )
       .leftJoinAndSelect('accountLinks.twitchAccount', 'twitchAccount')
       .leftJoinAndSelect(
         'twitchAccount.videos',
@@ -431,6 +443,7 @@ export class AppService {
       .leftJoinAndSelect(
         'linkedDestinyProfile.accountLinks',
         'linkedAccountLinks',
+        'linkedAccountLinks.rejected is null OR linkedAccountLinks.rejected != true',
       )
       .leftJoinAndSelect('linkedAccountLinks.xboxAccount', 'linkedXboxAccount')
       .leftJoinAndSelect(
@@ -617,6 +630,61 @@ export class AppService {
     }
 
     return instance;
+  }
+
+  async getAllLinkedAccounts(membershipId: string) {
+    const membershipIds = [];
+
+    const linkedProfiles = await getLinkedProfiles(
+      config => this.bungieService.bungieRequest(config),
+      {
+        membershipId,
+        membershipType: 254,
+        getAllMemberships: true,
+      },
+    ).catch(() => {
+      this.logger.error(
+        `Error fetching linked profiles for 254-${membershipId}`,
+      );
+
+      return {} as ServerResponse<DestinyLinkedProfilesResponse>;
+    });
+
+    if (linkedProfiles.Response?.bnetMembership) {
+      const bnetProfile = new BungieProfileEntity();
+      bnetProfile.membershipId =
+        linkedProfiles.Response.bnetMembership.membershipId;
+      bnetProfile.membershipType =
+        linkedProfiles.Response.bnetMembership.membershipType;
+      const childProfiles = [];
+      for (let j = 0; j < linkedProfiles.Response.profiles.length; j++) {
+        const linkedProfile = linkedProfiles.Response.profiles[j];
+        const childProfile = new DestinyProfileEntity();
+        childProfile.bnetProfile = bnetProfile;
+        childProfile.bnetProfileChecked = new Date().toISOString();
+        childProfile.displayName = linkedProfile.displayName;
+        childProfile.membershipId = linkedProfile.membershipId;
+        childProfile.membershipType = linkedProfile.membershipType;
+        childProfile.pageLastVisited = new Date().toISOString();
+        childProfiles.push(childProfile);
+
+        membershipIds.push(linkedProfile.membershipId);
+      }
+    }
+
+    const links = await getConnection()
+      .createQueryBuilder(AccountLinkEntity, 'link')
+      .leftJoinAndSelect('link.destinyProfile', 'destinyProfile')
+      .leftJoinAndSelect('link.twitchAccount', 'twitchAccount')
+      .leftJoinAndSelect('link.mixerAccount', 'mixerAccount')
+      .leftJoinAndSelect('link.xboxAccount', 'xboxAccount')
+      .where('link.destinyProfile = ANY (:membershipIds)', {
+        membershipIds,
+      })
+      .andWhere('link.rejected is null OR link.rejected != true')
+      .getMany();
+
+    return links;
   }
 
   async getStreamerVsStreamerInstances() {
@@ -1023,5 +1091,107 @@ export class AppService {
         membershipIds,
       })
       .getMany();
+  }
+
+  async removeLink(linkId: string, membershipId: string) {
+    const bnetProfile = await getConnection()
+      .createQueryBuilder(BungieProfileEntity, 'profile')
+      .leftJoinAndSelect('profile.profiles', 'profiles')
+      .where('profile.membershipId = :membershipId', { membershipId })
+      .getOne();
+    const loadedLink = await getConnection()
+      .createQueryBuilder(AccountLinkEntity, 'link')
+      .leftJoinAndSelect('link.mixerAccount', 'mixerAccount')
+      .leftJoinAndSelect('link.twitchAccount', 'twitchAccount')
+      .where('link.id = :linkId', { linkId })
+      .getOne();
+
+    let links: AccountLinkEntity[] = [];
+
+    if (loadedLink && loadedLink.accountType === 'mixer') {
+      links = await getConnection()
+        .createQueryBuilder(AccountLinkEntity, 'link')
+        .leftJoinAndSelect('link.mixerAccount', 'mixerAccount')
+        .leftJoinAndSelect('link.destinyProfile', 'destinyProfile')
+        .where('destinyProfile.membershipId = ANY (:membershipIds)', {
+          membershipIds: bnetProfile.profiles.map(
+            profile => profile.membershipId,
+          ),
+        })
+        .andWhere('mixerAccount.id = :id', { id: loadedLink.mixerAccount.id })
+        .getMany();
+    } else if (loadedLink && loadedLink.accountType === 'twitch') {
+      links = await getConnection()
+        .createQueryBuilder(AccountLinkEntity, 'link')
+        .leftJoinAndSelect('link.twitchAccount', 'twitchAccount')
+        .leftJoinAndSelect('link.destinyProfile', 'destinyProfile')
+        .where('destinyProfile.membershipId = ANY (:membershipIds)', {
+          membershipIds: bnetProfile.profiles.map(
+            profile => profile.membershipId,
+          ),
+        })
+        .andWhere('twitchAccount.id = :id', { id: loadedLink.twitchAccount.id })
+        .getMany();
+    }
+
+    for (let i = 0; i < links.length; i++) {
+      const link = links[i];
+
+      for (let j = 0; j < bnetProfile.profiles.length; j++) {
+        const profile = bnetProfile.profiles[j];
+        if (profile.membershipId === link.destinyProfile.membershipId) {
+          if (link.linkType === 'nameMatch') {
+            link.rejected = true;
+            await getRepository(AccountLinkEntity).save(link);
+          }
+          if (link.linkType === 'authentication') {
+            await getRepository(AccountLinkEntity).delete(link);
+          }
+        }
+      }
+    }
+
+    return this.getAllLinkedAccounts(membershipId);
+  }
+
+  async addTwitchLink(bnetMembershipId: string, twitchId: string) {
+    const bnetProfile = await getConnection()
+      .createQueryBuilder(BungieProfileEntity, 'bnetProfile')
+      .leftJoinAndSelect('bnetProfile.profiles', 'profiles')
+      .where('bnetProfile.membershipId = :bnetMembershipId', {
+        bnetMembershipId,
+      })
+      .getOne();
+
+    const twitchResponse = await this.twitchService.getUserFromId(twitchId);
+    const twitchResult = twitchResponse.data.data[0];
+
+    const twitchAccount = new TwitchAccountEntity();
+    twitchAccount.displayName = twitchResult.display_name;
+    twitchAccount.id = twitchResult.id;
+    twitchAccount.login = twitchResult.login;
+
+    await getRepository(TwitchAccountEntity).save(twitchAccount);
+    const links = [];
+
+    for (let i = 0; i < bnetProfile.profiles.length; i++) {
+      const profile = bnetProfile.profiles[i];
+      const link = new AccountLinkEntity();
+      link.accountType = 'twitch';
+      link.linkType = 'authentication';
+      link.destinyProfile = profile;
+      link.twitchAccount = twitchAccount;
+      link.id =
+        link.destinyProfile.membershipId +
+        link.accountType +
+        link.linkType +
+        link.twitchAccount.id;
+
+      links.push(link);
+
+      await getRepository(AccountLinkEntity).save(link);
+    }
+
+    return links;
   }
 }

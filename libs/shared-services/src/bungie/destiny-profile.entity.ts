@@ -5,6 +5,7 @@ import {
   OneToMany,
   PrimaryColumn,
   ManyToOne,
+  Index,
 } from 'typeorm';
 import { PgcrEntryEntity } from './pgcr-entry.entity';
 import { BungieProfileEntity } from './bungie-profile.entity';
@@ -13,6 +14,7 @@ import { AccountLinkEntity } from '../helpers/account-link.entity';
 @Entity()
 export class DestinyProfileEntity {
   @PrimaryColumn()
+  @Index({ unique: true })
   membershipId: string;
 
   @Column()
@@ -31,6 +33,7 @@ export class DestinyProfileEntity {
   @JoinColumn({
     name: 'bnetProfile',
   })
+  @Index()
   bnetProfile?: BungieProfileEntity;
 
   @OneToMany(
