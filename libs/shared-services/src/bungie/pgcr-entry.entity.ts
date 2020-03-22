@@ -31,10 +31,12 @@ export class PgcrEntryEntity {
   instance: PgcrEntity;
 
   @Column('tstzrange')
+  @Index()
   timePlayedRange: string;
 
   @Column({
     nullable: true,
   })
+  @Index()
   team?: number;
 }

@@ -17,6 +17,7 @@ import { AccountLinkEntity } from '@services/shared-services/helpers/account-lin
 import { PgcrEntity } from '@services/shared-services/bungie/pgcr.entity';
 import { BungieProfileEntity } from '@services/shared-services/bungie/bungie-profile.entity';
 import { TwitchAccountEntity } from '@services/shared-services/twitch/twitch-account.entity';
+import { AccountLinkVoteEntity } from '@services/shared-services/helpers/account-link-vote.entity';
 
 @Injectable()
 export class AppService {
@@ -77,6 +78,11 @@ export class AppService {
             dateLastPlayed = new Date(linkedProfile.dateLastPlayed);
           }
         }
+        await upsert(
+          BungieProfileEntity,
+          bnetProfile,
+          'membershipId',
+        ).catch(() => this.logger.error(`Error Saving Bungie Profile`));
         await upsert(
           DestinyProfileEntity,
           childProfiles,
@@ -188,41 +194,6 @@ export class AppService {
         'entry.timePlayedRange && clips.dateRecordedRange',
       )
       .leftJoinAndSelect('destinyProfile.bnetProfile', 'bnetProfile')
-      .leftJoinAndSelect(
-        'bnetProfile.profiles',
-        'linkedDestinyProfile',
-        'linkedDestinyProfile.membershipId != destinyProfile.membershipId',
-      )
-      .leftJoinAndSelect(
-        'linkedDestinyProfile.accountLinks',
-        'linkedAccountLinks',
-        'linkedAccountLinks.rejected is null OR linkedAccountLinks.rejected != true',
-      )
-      .leftJoinAndSelect('linkedAccountLinks.xboxAccount', 'linkedXboxAccount')
-      .leftJoinAndSelect(
-        'linkedXboxAccount.clips',
-        'linkedClips',
-        'entry.timePlayedRange && linkedClips.dateRecordedRange',
-      )
-      .leftJoinAndSelect(
-        'linkedAccountLinks.twitchAccount',
-        'linkedTwitchAccount',
-      )
-      .leftJoinAndSelect(
-        'linkedTwitchAccount.videos',
-        'linkedVideos',
-        'entry.timePlayedRange && linkedVideos.durationRange',
-      )
-      .leftJoinAndSelect(
-        'linkedAccountLinks.mixerAccount',
-        'linkedMixerAccount',
-      )
-      .leftJoinAndSelect('linkedMixerAccount.channel', 'linkedChannel')
-      .leftJoinAndSelect(
-        'linkedChannel.recordings',
-        'linkedRecordings',
-        'entry.timePlayedRange && linkedRecordings.durationRange',
-      )
       .orderBy('instance.period', 'DESC')
       .where('entry.profile = ANY (:membershipIds)', {
         membershipIds,
@@ -249,7 +220,7 @@ export class AppService {
         bnetMembershipId: string;
         team: number;
         linkName: string;
-        linkId?: string | number;
+        linkId?: string;
         type: string;
         url: string;
         embedUrl: string;
@@ -316,7 +287,7 @@ export class AppService {
             const entryLink = {
               ...linkInfo,
               linkName: accountLink.twitchAccount.displayName,
-              linkId: accountLink.twitchAccount.id,
+              linkId: accountLink.id,
             };
             for (let l = 0; l < accountLink.twitchAccount.videos.length; l++) {
               const twitchVideo = accountLink.twitchAccount.videos[l];
@@ -352,7 +323,7 @@ export class AppService {
               const entryLink = {
                 ...linkInfo,
                 linkName: accountLink.mixerAccount.username,
-                linkId: accountLink.mixerAccount.id,
+                linkId: accountLink.id,
               };
               const mixerRecording =
                 accountLink.mixerAccount.channel.recordings[l];
@@ -435,41 +406,6 @@ export class AppService {
         'entries.timePlayedRange && clips.dateRecordedRange',
       )
       .leftJoinAndSelect('destinyProfile.bnetProfile', 'bnetProfile')
-      .leftJoinAndSelect(
-        'bnetProfile.profiles',
-        'linkedDestinyProfile',
-        'linkedDestinyProfile.membershipId != destinyProfile.membershipId',
-      )
-      .leftJoinAndSelect(
-        'linkedDestinyProfile.accountLinks',
-        'linkedAccountLinks',
-        'linkedAccountLinks.rejected is null OR linkedAccountLinks.rejected != true',
-      )
-      .leftJoinAndSelect('linkedAccountLinks.xboxAccount', 'linkedXboxAccount')
-      .leftJoinAndSelect(
-        'linkedXboxAccount.clips',
-        'linkedClips',
-        'entries.timePlayedRange && linkedClips.dateRecordedRange',
-      )
-      .leftJoinAndSelect(
-        'linkedAccountLinks.twitchAccount',
-        'linkedTwitchAccount',
-      )
-      .leftJoinAndSelect(
-        'linkedTwitchAccount.videos',
-        'linkedVideos',
-        'entries.timePlayedRange && linkedVideos.durationRange',
-      )
-      .leftJoinAndSelect(
-        'linkedAccountLinks.mixerAccount',
-        'linkedMixerAccount',
-      )
-      .leftJoinAndSelect('linkedMixerAccount.channel', 'linkedChannel')
-      .leftJoinAndSelect(
-        'linkedChannel.recordings',
-        'linkedRecordings',
-        'entries.timePlayedRange && linkedRecordings.durationRange',
-      )
       .orderBy('instance.period', 'DESC')
       .where('instance = :instanceId', {
         instanceId,
@@ -490,7 +426,7 @@ export class AppService {
       membershipType: number;
       team: number;
       linkName: string;
-      linkId?: string | number;
+      linkId?: string;
       type: string;
       url: string;
       embedUrl: string;
@@ -551,7 +487,7 @@ export class AppService {
           const entryLink = {
             ...linkInfo,
             linkName: accountLink.twitchAccount.displayName,
-            linkId: accountLink.twitchAccount.id,
+            linkId: accountLink.id,
           };
           for (let l = 0; l < accountLink.twitchAccount.videos.length; l++) {
             const twitchVideo = accountLink.twitchAccount.videos[l];
@@ -587,7 +523,7 @@ export class AppService {
             const entryLink = {
               ...linkInfo,
               linkName: accountLink.mixerAccount.username,
-              linkId: accountLink.mixerAccount.id,
+              linkId: accountLink.id,
             };
             const mixerRecording =
               accountLink.mixerAccount.channel.recordings[l];
@@ -688,156 +624,60 @@ export class AppService {
   }
 
   async getStreamerVsStreamerInstances() {
-    return [];
+    // return [];
     const pgcrsWithVideos17 = getConnection()
       .createQueryBuilder(PgcrEntity, 'pgcr')
-      .limit(100)
       .innerJoin('pgcr.entries', 'entries')
       .innerJoin('entries.profile', 'destinyProfile')
       .innerJoin('destinyProfile.accountLinks', 'accountLinks')
       .innerJoin('accountLinks.twitchAccount', 'twitchAccount')
-      .innerJoin(
-        'twitchAccount.videos',
-        'videos',
-        'entries.timePlayedRange && videos.durationRange',
-      )
+      .innerJoin('twitchAccount.videos', 'videos')
+      .where('entries.team = 17')
+      .andWhere('entries.timePlayedRange && videos.durationRange')
+      .limit(1000)
       .select('pgcr.instanceId');
-    // return pgcrsWithVideos17.take(100).getMany();
     const pgcrsWithVideos18 = getConnection()
       .createQueryBuilder(PgcrEntity, 'pgcr')
-      .limit(100)
-      .innerJoin('pgcr.entries', 'entries', 'entries.team = 18')
+      .innerJoin('pgcr.entries', 'entries')
       .innerJoin('entries.profile', 'destinyProfile')
       .innerJoin('destinyProfile.accountLinks', 'accountLinks')
       .innerJoin('accountLinks.twitchAccount', 'twitchAccount')
-      .innerJoin(
-        'twitchAccount.videos',
-        'videos',
-        'entries.timePlayedRange && videos.durationRange',
-      )
+      .innerJoin('twitchAccount.videos', 'videos')
+      .where('entries.team = 18')
+      .andWhere('entries.timePlayedRange && videos.durationRange')
+      .limit(1000)
       .select('pgcr.instanceId');
+    // return pgcrsWithVideos17.getMany();
 
     const pgcrsWithRecordings17 = getConnection()
       .createQueryBuilder(PgcrEntity, 'pgcr')
-      .limit(100)
-      .innerJoin('pgcr.entries', 'entries', 'entries.team = 17')
+      .innerJoin('pgcr.entries', 'entries')
       .innerJoin('entries.profile', 'destinyProfile')
       .innerJoin('destinyProfile.accountLinks', 'accountLinks')
       .innerJoin('accountLinks.mixerAccount', 'mixerAccount')
       .innerJoin('mixerAccount.channel', 'channel')
-      .innerJoin(
-        'channel.recordings',
-        'recordings',
-        'entries.timePlayedRange && recordings.durationRange',
-      )
+      .innerJoin('channel.recordings', 'recordings')
+      .where('entries.team = 17')
+      .andWhere('entries.timePlayedRange && recordings.durationRange')
+      .limit(1000)
       .select('pgcr.instanceId');
     const pgcrsWithRecordings18 = getConnection()
       .createQueryBuilder(PgcrEntity, 'pgcr')
-      .limit(100)
-      .innerJoin('pgcr.entries', 'entries', 'entries.team = 18')
+      .innerJoin('pgcr.entries', 'entries')
       .innerJoin('entries.profile', 'destinyProfile')
       .innerJoin('destinyProfile.accountLinks', 'accountLinks')
       .innerJoin('accountLinks.mixerAccount', 'mixerAccount')
       .innerJoin('mixerAccount.channel', 'channel')
-      .innerJoin(
-        'channel.recordings',
-        'recordings',
-        'entries.timePlayedRange && recordings.durationRange',
-      )
+      .innerJoin('channel.recordings', 'recordings')
+      .where('entries.team = 18')
+      .andWhere('entries.timePlayedRange && recordings.durationRange')
+      .limit(1000)
       .select('pgcr.instanceId');
 
-    // return pgcrsWithRecordings.take(100).getMany();
-
-    const pgcrsWithLinkedVideos17 = getConnection()
-      .createQueryBuilder(PgcrEntity, 'pgcr')
-      .limit(100)
-      .innerJoin('pgcr.entries', 'entries', 'entries.team = 17')
-      .innerJoin('entries.profile', 'destinyProfile')
-      .innerJoin('destinyProfile.bnetProfile', 'bnetProfile')
-      .innerJoin(
-        'bnetProfile.profiles',
-        'linkedDestinyProfiles',
-        'linkedDestinyProfiles.membershipId != destinyProfile.membershipId',
-      )
-      .innerJoin('linkedDestinyProfiles.accountLinks', 'linkedAccountLinks')
-      .innerJoin('linkedAccountLinks.twitchAccount', 'linkedTwitchAccount')
-      .innerJoin(
-        'linkedTwitchAccount.videos',
-        'linkedVideos',
-        'entries.timePlayedRange && linkedVideos.durationRange',
-      )
-      .select('pgcr.instanceId');
-    const pgcrsWithLinkedVideos18 = getConnection()
-      .createQueryBuilder(PgcrEntity, 'pgcr')
-      .limit(100)
-      .innerJoin('pgcr.entries', 'entries', 'entries.team = 18')
-      .innerJoin('entries.profile', 'destinyProfile')
-      .innerJoin('destinyProfile.bnetProfile', 'bnetProfile')
-      .innerJoin(
-        'bnetProfile.profiles',
-        'linkedDestinyProfiles',
-        'linkedDestinyProfiles.membershipId != destinyProfile.membershipId',
-      )
-      .innerJoin('linkedDestinyProfiles.accountLinks', 'linkedAccountLinks')
-      .innerJoin('linkedAccountLinks.twitchAccount', 'linkedTwitchAccount')
-      .innerJoin(
-        'linkedTwitchAccount.videos',
-        'linkedVideos',
-        'entries.timePlayedRange && linkedVideos.durationRange',
-      )
-      .select('pgcr.instanceId');
-
-    // return pgcrsWithLinkedVideos.take(100).getMany();
-
-    const pgcrsWithLinkedRecordings17 = getConnection()
-      .createQueryBuilder(PgcrEntity, 'pgcr')
-      .limit(100)
-      .innerJoin('pgcr.entries', 'entries', 'entries.team = 17')
-      .innerJoin('entries.profile', 'destinyProfile')
-      .innerJoin('destinyProfile.bnetProfile', 'bnetProfile')
-      .innerJoin(
-        'bnetProfile.profiles',
-        'linkedDestinyProfiles',
-        'linkedDestinyProfiles.membershipId != destinyProfile.membershipId',
-      )
-      .innerJoin('linkedDestinyProfiles.accountLinks', 'linkedAccountLinks')
-      .innerJoin('linkedAccountLinks.mixerAccount', 'linkedMixerAccount')
-      .innerJoin('linkedMixerAccount.channel', 'linkedChannel')
-      .innerJoin(
-        'linkedChannel.recordings',
-        'linkedRecordings',
-        'entries.timePlayedRange && linkedRecordings.durationRange',
-      )
-      .select('pgcr.instanceId');
-    const pgcrsWithLinkedRecordings18 = getConnection()
-      .createQueryBuilder(PgcrEntity, 'pgcr')
-      .limit(100)
-      .innerJoin('pgcr.entries', 'entries', 'entries.team = 18')
-      .innerJoin('entries.profile', 'destinyProfile')
-      .innerJoin('destinyProfile.bnetProfile', 'bnetProfile')
-      .innerJoin(
-        'bnetProfile.profiles',
-        'linkedDestinyProfiles',
-        'linkedDestinyProfiles.membershipId != destinyProfile.membershipId',
-      )
-      .innerJoin('linkedDestinyProfiles.accountLinks', 'linkedAccountLinks')
-      .innerJoin('linkedAccountLinks.mixerAccount', 'linkedMixerAccount')
-      .innerJoin('linkedMixerAccount.channel', 'linkedChannel')
-      .innerJoin(
-        'linkedChannel.recordings',
-        'linkedRecordings',
-        'entries.timePlayedRange && linkedRecordings.durationRange',
-      )
-      .select('pgcr.instanceId');
-
-    // return pgcrsWithLinkedRecordings.take(100).getMany();
+    // return pgcrsWithRecordings18.getMany();
 
     const pgcrs = getConnection()
       .createQueryBuilder(PgcrEntity, 'pgcr')
-      .limit(1000)
-      .where(
-        `(pgcr.instanceId IN (${pgcrsWithVideos17.getQuery()}) OR pgcr.instanceId IN (${pgcrsWithRecordings17.getQuery()}) OR pgcr.instanceId IN (${pgcrsWithLinkedVideos17.getQuery()}) OR pgcr.instanceId IN (${pgcrsWithLinkedRecordings17.getQuery()})) AND (pgcr.instanceId IN (${pgcrsWithVideos18.getQuery()}) OR pgcr.instanceId IN (${pgcrsWithRecordings18.getQuery()}) OR pgcr.instanceId IN (${pgcrsWithLinkedVideos18.getQuery()}) OR pgcr.instanceId IN (${pgcrsWithLinkedRecordings18.getQuery()}))`,
-      )
       .leftJoinAndSelect('pgcr.entries', 'entries')
       .leftJoinAndSelect('entries.profile', 'destinyProfile')
       .leftJoinAndSelect('destinyProfile.accountLinks', 'accountLinks')
@@ -855,36 +695,11 @@ export class AppService {
         'entries.timePlayedRange && recordings.durationRange',
       )
       .leftJoinAndSelect('destinyProfile.bnetProfile', 'bnetProfile')
-      .leftJoinAndSelect(
-        'bnetProfile.profiles',
-        'linkedDestinyProfiles',
-        'linkedDestinyProfiles.membershipId != destinyProfile.membershipId',
-      )
-      .leftJoinAndSelect(
-        'linkedDestinyProfiles.accountLinks',
-        'linkedAccountLinks',
-      )
-      .leftJoinAndSelect(
-        'linkedAccountLinks.twitchAccount',
-        'linkedTwitchAccount',
-      )
-      .leftJoinAndSelect(
-        'linkedTwitchAccount.videos',
-        'linkedVideos',
-        'entries.timePlayedRange && linkedVideos.durationRange',
-      )
-      .leftJoinAndSelect(
-        'linkedAccountLinks.mixerAccount',
-        'linkedMixerAccount',
-      )
-      .leftJoinAndSelect('linkedMixerAccount.channel', 'linkedChannel')
-      .leftJoinAndSelect(
-        'linkedChannel.recordings',
-        'linkedRecordings',
-        'entries.timePlayedRange && linkedRecordings.durationRange',
+      .where(
+        `(pgcr.instanceId IN (${pgcrsWithVideos17.getQuery()}) OR pgcr.instanceId IN (${pgcrsWithRecordings17.getQuery()})) AND (pgcr.instanceId IN (${pgcrsWithVideos18.getQuery()}) OR pgcr.instanceId IN (${pgcrsWithRecordings18.getQuery()}))`,
       )
       .orderBy('pgcr.period', 'DESC')
-      .take(21)
+      .limit(1000)
       .getMany();
 
     const rawInstances = await pgcrs;
@@ -901,7 +716,7 @@ export class AppService {
         membershipType: number;
         team: number;
         linkName: string;
-        linkId?: string | number;
+        linkId?: string;
         type: string;
         url: string;
         embedUrl: string;
@@ -927,7 +742,7 @@ export class AppService {
         membershipType: number;
         team: number;
         linkName: string;
-        linkId?: string | number;
+        linkId?: string;
         type: string;
         url: string;
         embedUrl: string;
@@ -971,7 +786,7 @@ export class AppService {
             const entryLink = {
               ...linkInfo,
               linkName: accountLink.twitchAccount.displayName,
-              linkId: accountLink.twitchAccount.id,
+              linkId: accountLink.id,
             };
             for (let l = 0; l < accountLink.twitchAccount.videos?.length; l++) {
               const twitchVideo = accountLink.twitchAccount.videos[l];
@@ -1007,7 +822,7 @@ export class AppService {
               const entryLink = {
                 ...linkInfo,
                 linkName: accountLink.mixerAccount.username,
-                linkId: accountLink.mixerAccount.id,
+                linkId: accountLink.id,
               };
               const mixerRecording =
                 accountLink.mixerAccount.channel.recordings[l];
@@ -1093,6 +908,59 @@ export class AppService {
       .getMany();
   }
 
+  async getAllVotes(membershipId: string) {
+    const votes = await getConnection()
+      .createQueryBuilder(AccountLinkVoteEntity, 'votes')
+      .leftJoin('votes.bnetProfile', 'bnetProfile')
+      .leftJoinAndSelect('votes.link', 'link')
+      .where('votes.bnetProfile = :membershipId', { membershipId })
+      .andWhere('votes.vote = -1')
+      .getMany();
+    return votes;
+  }
+
+  async reportLink(linkId: string, membershipId: string) {
+    const bnetProfile = await getConnection()
+      .createQueryBuilder(BungieProfileEntity, 'profile')
+      .leftJoinAndSelect('profile.profiles', 'profiles')
+      .where('profile.membershipId = :membershipId', { membershipId })
+      .getOne();
+    const link = await getConnection()
+      .createQueryBuilder(AccountLinkEntity, 'link')
+      .leftJoinAndSelect('link.mixerAccount', 'mixerAccount')
+      .leftJoinAndSelect('link.twitchAccount', 'twitchAccount')
+      .where('link.id = :linkId', { linkId })
+      .getOne();
+
+    const vote = new AccountLinkVoteEntity();
+    vote.id = membershipId + linkId;
+    vote.bnetProfile = bnetProfile;
+    vote.link = link;
+    vote.vote = -1;
+
+    await getRepository(AccountLinkVoteEntity)
+      .save(vote)
+      .catch(() => this.logger.error(`Error saving Vote`));
+
+    return this.getAllVotes(membershipId);
+  }
+
+  async unreportLink(linkId: string, membershipId: string) {
+    const vote = await getConnection()
+      .createQueryBuilder(AccountLinkVoteEntity, 'vote')
+      .leftJoinAndSelect('vote.bnetProfile', 'bnetProfile')
+      .leftJoinAndSelect('vote.link', 'link')
+      .where('vote.bnetProfile = :membershipId', { membershipId })
+      .andWhere('vote.link = :linkId', { linkId })
+      .getOne();
+
+    await getRepository(AccountLinkVoteEntity)
+      .delete(vote)
+      .catch(() => this.logger.error(`Error deleting Vote`));
+
+    return this.getAllVotes(membershipId);
+  }
+
   async removeLink(linkId: string, membershipId: string) {
     const bnetProfile = await getConnection()
       .createQueryBuilder(BungieProfileEntity, 'profile')
@@ -1142,10 +1010,14 @@ export class AppService {
         if (profile.membershipId === link.destinyProfile.membershipId) {
           if (link.linkType === 'nameMatch') {
             link.rejected = true;
-            await getRepository(AccountLinkEntity).save(link);
+            await getRepository(AccountLinkEntity)
+              .save(link)
+              .catch(() => this.logger.error(`Error saving Link`));
           }
           if (link.linkType === 'authentication') {
-            await getRepository(AccountLinkEntity).delete(link);
+            await getRepository(AccountLinkEntity)
+              .delete(link)
+              .catch(() => this.logger.error(`Error deleting Link`));
           }
         }
       }
@@ -1171,7 +1043,9 @@ export class AppService {
     twitchAccount.id = twitchResult.id;
     twitchAccount.login = twitchResult.login;
 
-    await getRepository(TwitchAccountEntity).save(twitchAccount);
+    await getRepository(TwitchAccountEntity)
+      .save(twitchAccount)
+      .catch(() => this.logger.error(`Error saving Twitch Account`));
     const links = [];
 
     for (let i = 0; i < bnetProfile.profiles.length; i++) {
@@ -1189,7 +1063,9 @@ export class AppService {
 
       links.push(link);
 
-      await getRepository(AccountLinkEntity).save(link);
+      await getRepository(AccountLinkEntity)
+        .save(link)
+        .catch(() => this.logger.error(`Error saving Link`));
     }
 
     return links;

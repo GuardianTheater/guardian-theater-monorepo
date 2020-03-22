@@ -1,9 +1,19 @@
-import { Entity, ManyToOne, JoinColumn, Column, Index } from 'typeorm';
+import {
+  Entity,
+  ManyToOne,
+  JoinColumn,
+  Column,
+  Index,
+  PrimaryColumn,
+} from 'typeorm';
 import { BungieProfileEntity } from '../bungie/bungie-profile.entity';
 import { AccountLinkEntity } from './account-link.entity';
 
 @Entity()
 export class AccountLinkVoteEntity {
+  @PrimaryColumn({ unique: true })
+  id: string;
+
   @ManyToOne(
     () => BungieProfileEntity,
     profile => profile.votes,

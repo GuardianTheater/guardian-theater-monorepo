@@ -43,8 +43,6 @@ export class AppService {
     const xboxClipEntitiesToSave: XboxClipEntity[] = [];
     const xboxClipEntitiesToDelete: XboxClipEntity[] = [];
 
-    let failCount = 0;
-
     for (let i = 0; i < accountsToCheck.length; i++) {
       const loadedAccount = accountsToCheck[i];
 
@@ -65,7 +63,9 @@ export class AppService {
 
       const toSave: XboxClipEntity[] = [];
       if (res.data?.status !== 'success') {
-        failCount++;
+        this.logger.error(
+          `Failed to retrieve clips for ${xboxAccount.gamertag}.`,
+        );
       }
 
       if (res.data?.status === 'success' && res.data?.gameClips) {
@@ -91,6 +91,7 @@ export class AppService {
       }
 
       if (res.data?.status === 'success' && xboxAccount.gamertag) {
+        this.logger.log(`Retrieved clips for ${xboxAccount.gamertag}.`);
         const existingClips = await getConnection()
           .createQueryBuilder(XboxClipEntity, 'xboxClip')
           .where('xboxClip.xboxAccount = :gamertag', {
@@ -113,10 +114,6 @@ export class AppService {
         }
       }
       await new Promise(resolve => setTimeout(resolve, 1000));
-    }
-
-    if (failCount > 7) {
-      await new Promise(resolve => setTimeout(resolve, 15000));
     }
 
     const uniqueXboxAccountEntities = uniqueEntityArray(

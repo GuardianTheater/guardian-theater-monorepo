@@ -52,6 +52,8 @@ settings:
     value: 'value'
   - name: ORIGIN
     value: 'value'
+  - name: BASE_URL
+    value: 'value'
 imagePullSecrets: []
 nameOverride: ''
 
