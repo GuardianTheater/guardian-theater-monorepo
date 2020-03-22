@@ -205,62 +205,65 @@ export class AppService {
           return {} as ServerResponse<DestinyPostGameCarnageReportData>;
         });
 
-        const pgcrEntity = new PgcrEntity();
+        if (pgcr.Response) {
+          const pgcrEntity = new PgcrEntity();
 
-        pgcrEntity.instanceId = pgcr.Response.activityDetails.instanceId;
-        pgcrEntity.activityHash =
-          pgcr.Response.activityDetails.referenceId + '';
-        pgcrEntity.directorActivityHash =
-          pgcr.Response.activityDetails.directorActivityHash + '';
-        pgcrEntity.membershipType =
-          pgcr.Response.activityDetails.membershipType;
-        pgcrEntity.period = pgcr.Response.period;
+          pgcrEntity.instanceId = pgcr.Response.activityDetails.instanceId;
+          pgcrEntity.activityHash =
+            pgcr.Response.activityDetails.referenceId + '';
+          pgcrEntity.directorActivityHash =
+            pgcr.Response.activityDetails.directorActivityHash + '';
+          pgcrEntity.membershipType =
+            pgcr.Response.activityDetails.membershipType;
+          pgcrEntity.period = pgcr.Response.period;
 
-        pgcrEntities.push(pgcrEntity);
+          pgcrEntities.push(pgcrEntity);
 
-        for (let j = 0; j < pgcr.Response.entries.length; j++) {
-          const entry = pgcr.Response.entries[j];
-          if (
-            entry.player.destinyUserInfo.membershipId &&
-            entry.player.destinyUserInfo.displayName
-          ) {
-            const pgcrEntryEntity = new PgcrEntryEntity();
-            pgcrEntryEntity.instance = pgcrEntity;
+          for (let j = 0; j < pgcr.Response.entries.length; j++) {
+            const entry = pgcr.Response.entries[j];
+            if (
+              entry.player.destinyUserInfo.membershipId &&
+              entry.player.destinyUserInfo.displayName
+            ) {
+              const pgcrEntryEntity = new PgcrEntryEntity();
+              pgcrEntryEntity.instance = pgcrEntity;
 
-            const destinyProfileEntity = new DestinyProfileEntity();
+              const destinyProfileEntity = new DestinyProfileEntity();
 
-            destinyProfileEntity.displayName =
-              entry.player.destinyUserInfo.displayName;
-            destinyProfileEntity.membershipId =
-              entry.player.destinyUserInfo.membershipId;
-            destinyProfileEntity.membershipType =
-              entry.player.destinyUserInfo.membershipType;
+              destinyProfileEntity.displayName =
+                entry.player.destinyUserInfo.displayName;
+              destinyProfileEntity.membershipId =
+                entry.player.destinyUserInfo.membershipId;
+              destinyProfileEntity.membershipType =
+                entry.player.destinyUserInfo.membershipType;
 
-            pgcrEntryEntity.profile = destinyProfileEntity;
+              pgcrEntryEntity.profile = destinyProfileEntity;
 
-            destinyProfileEntities.push(destinyProfileEntity);
+              destinyProfileEntities.push(destinyProfileEntity);
 
-            if (entry.values.team) {
-              pgcrEntryEntity.team = entry.values.team.basic.value;
+              if (entry.values.team) {
+                pgcrEntryEntity.team = entry.values.team.basic.value;
+              }
+
+              let startTime = new Date(pgcrEntity.period);
+              startTime = new Date(
+                startTime.setSeconds(
+                  startTime.getSeconds() +
+                    entry.values.startSeconds.basic.value,
+                ),
+              );
+              let endTime = new Date(pgcrEntity.period);
+              endTime = new Date(
+                endTime.setSeconds(
+                  endTime.getSeconds() +
+                    entry.values.startSeconds.basic.value +
+                    entry.values.timePlayedSeconds.basic.value,
+                ),
+              );
+
+              pgcrEntryEntity.timePlayedRange = `[${startTime.toISOString()}, ${endTime.toISOString()}]`;
+              pgcrEntryEntities.push(pgcrEntryEntity);
             }
-
-            let startTime = new Date(pgcrEntity.period);
-            startTime = new Date(
-              startTime.setSeconds(
-                startTime.getSeconds() + entry.values.startSeconds.basic.value,
-              ),
-            );
-            let endTime = new Date(pgcrEntity.period);
-            endTime = new Date(
-              endTime.setSeconds(
-                endTime.getSeconds() +
-                  entry.values.startSeconds.basic.value +
-                  entry.values.timePlayedSeconds.basic.value,
-              ),
-            );
-
-            pgcrEntryEntity.timePlayedRange = `[${startTime.toISOString()}, ${endTime.toISOString()}]`;
-            pgcrEntryEntities.push(pgcrEntryEntity);
           }
         }
 

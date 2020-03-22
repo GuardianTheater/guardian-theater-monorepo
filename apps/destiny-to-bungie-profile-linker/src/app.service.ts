@@ -11,6 +11,7 @@ import { BungieProfileEntity } from '@services/shared-services/bungie/bungie-pro
 import upsert from '@services/shared-services/helpers/typeorm-upsert';
 import { Interval } from '@nestjs/schedule';
 import uniqueEntityArray from '@services/shared-services/helpers/unique-entity-array';
+import { AccountLinkEntity } from '@services/shared-services/helpers/account-link.entity';
 
 @Injectable()
 export class AppService {
@@ -31,6 +32,10 @@ export class AppService {
   async linkBungieAccounts() {
     const profilesToCheck = await getConnection()
       .createQueryBuilder(DestinyProfileEntity, 'profile')
+      .leftJoinAndSelect('profile.accountLinks', 'accountLinks')
+      .leftJoinAndSelect('accountLinks.mixerAccount', 'mixerAccount')
+      .leftJoinAndSelect('accountLinks.xboxAccount', 'xboxAccount')
+      .leftJoinAndSelect('accountLinks.twitchAccount', 'twitchAccount')
       .orderBy('profile.bnetProfileChecked', 'ASC', 'NULLS FIRST')
       .take(100)
       .getMany()
@@ -42,6 +47,7 @@ export class AppService {
     const requests = [];
     const destinyProfiles: DestinyProfileEntity[] = [];
     const bungieProfiles: BungieProfileEntity[] = [];
+    const accountLinks: AccountLinkEntity[] = [];
 
     for (let i = 0; i < profilesToCheck.length; i++) {
       const loadedProfile = profilesToCheck[i];
@@ -82,6 +88,8 @@ export class AppService {
           profile.bnetProfile = bnetProfile;
           bungieProfiles.push(bnetProfile);
 
+          const linkedProfileEntities = [];
+
           for (let j = 0; j < linkedProfiles.Response.profiles.length; j++) {
             const linkedProfile = linkedProfiles.Response.profiles[j];
             if (linkedProfile.membershipId !== profile.membershipId) {
@@ -92,6 +100,74 @@ export class AppService {
               childProfile.membershipId = linkedProfile.membershipId;
               childProfile.membershipType = linkedProfile.membershipType;
               destinyProfiles.push(childProfile);
+              linkedProfileEntities.push(childProfile);
+            }
+          }
+
+          const existingProfiles = await getConnection()
+            .createQueryBuilder(BungieProfileEntity, 'bnetProfile')
+            .leftJoinAndSelect('bnetProfile.profiles', 'profiles')
+            .leftJoinAndSelect('profiles.accountLinks', 'accountLinks')
+            .leftJoinAndSelect('accountLinks.mixerAccount', 'mixerAccount')
+            .leftJoinAndSelect('accountLinks.xboxAccount', 'xboxAccount')
+            .leftJoinAndSelect('accountLinks.twitchAccount', 'twitchAccount')
+            .where('bnetProfile.membershipId = :membershipId', {
+              membershipId: linkedProfiles.Response.bnetMembership.membershipId,
+            })
+            .getOne()
+            .catch(() => {
+              this.logger.error(`Error fetching Bungie Profile from database`);
+              return {} as BungieProfileEntity;
+            });
+
+          const existingLinks = [];
+
+          for (let j = 0; j < loadedProfile.accountLinks?.length; j++) {
+            const existingLink = loadedProfile.accountLinks[j];
+            existingLinks.push(existingLink);
+          }
+
+          for (let j = 0; j < existingProfiles?.profiles?.length; j++) {
+            const existingProfile = existingProfiles.profiles[j];
+            for (let k = 0; k < existingProfile.accountLinks?.length; k++) {
+              const existingLink = existingProfile.accountLinks[k];
+              existingLinks.push(existingLink);
+            }
+          }
+
+          for (let j = 0; j < linkedProfileEntities?.length; j++) {
+            const destinyProfile = linkedProfileEntities[j];
+            for (let k = 0; k < existingLinks?.length; k++) {
+              const existingLink = existingLinks[k];
+              const accountLink = new AccountLinkEntity();
+              accountLink.accountType = existingLink.accountType;
+              accountLink.destinyProfile = destinyProfile;
+              accountLink.linkType = existingLink.linkType;
+              if (accountLink.accountType === 'mixer') {
+                accountLink.mixerAccount = existingLink.mixerAccount;
+                accountLink.id =
+                  accountLink.destinyProfile.membershipId +
+                  accountLink.accountType +
+                  accountLink.linkType +
+                  accountLink.mixerAccount.id;
+              }
+              if (accountLink.accountType === 'twitch') {
+                accountLink.twitchAccount = existingLink.twitchAccount;
+                accountLink.id =
+                  accountLink.destinyProfile.membershipId +
+                  accountLink.accountType +
+                  accountLink.linkType +
+                  accountLink.twitchAccount.id;
+              }
+              if (accountLink.accountType === 'xbox') {
+                accountLink.xboxAccount = existingLink.xboxAccount;
+                accountLink.id =
+                  accountLink.destinyProfile.membershipId +
+                  accountLink.accountType +
+                  accountLink.linkType +
+                  accountLink.xboxAccount.gamertag;
+              }
+              accountLinks.push(accountLink);
             }
           }
         }
@@ -149,6 +225,20 @@ export class AppService {
           this.logger.log(
             `Saved ${uniqueDestinyProfiles.length} Destiny Profiles.`,
           ),
+        );
+    }
+
+    const uniqueAccountLinks = uniqueEntityArray(accountLinks, 'id');
+
+    if (uniqueAccountLinks.length) {
+      await upsert(AccountLinkEntity, uniqueAccountLinks, 'id')
+        .catch(() =>
+          this.logger.error(
+            `Error saving ${uniqueAccountLinks.length} Account Links.`,
+          ),
+        )
+        .finally(() =>
+          this.logger.log(`Saved ${uniqueAccountLinks.length} Account Links.`),
         );
     }
   }

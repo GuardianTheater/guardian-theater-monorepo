@@ -12,12 +12,14 @@ export class PgcrEntity {
   membershipType: BungieMembershipType;
 
   @Column({ type: 'timestamptz' })
+  @Index()
   period: string;
 
   @Column({ nullable: true })
   activityHash?: string;
 
   @Column({ nullable: true })
+  @Index()
   directorActivityHash?: string;
 
   @OneToMany(

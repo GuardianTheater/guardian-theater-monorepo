@@ -15,7 +15,7 @@ import { XboxAccountEntity } from '../xbox/xbox-account.entity';
 
 @Entity()
 export class AccountLinkEntity {
-  @PrimaryColumn()
+  @PrimaryColumn({ unique: true })
   id: string;
 
   @ManyToOne(

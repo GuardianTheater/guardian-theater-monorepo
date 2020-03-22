@@ -30,7 +30,7 @@ export class AppController {
   }
 
   @Get('streamervsstreamer')
-  @CacheTTL(3600)
+  @CacheTTL(300)
   getStreamerVsStreamer() {
     return this.appService.getStreamerVsStreamerInstances();
   }
@@ -58,6 +58,39 @@ export class AppController {
   @CacheTTL(300)
   getClipsForActivity(@Param('instanceId') instanceId: string) {
     return this.appService.getVideosForInstance(instanceId);
+  }
+
+  @Get('getVotes')
+  @UseGuards(JwtAuthGuard)
+  getVotes(@Request() req) {
+    const membershipId = req.user.membershipId;
+    return this.appService.getAllVotes(membershipId);
+  }
+
+  @Post('reportLink')
+  @UseGuards(JwtAuthGuard)
+  reportLink(
+    @Request() req,
+    @Body()
+    reportLinkDto: {
+      linkId: string;
+    },
+  ) {
+    const membershipId = req.user.membershipId;
+    return this.appService.reportLink(reportLinkDto.linkId, membershipId);
+  }
+
+  @Post('unreportLink')
+  @UseGuards(JwtAuthGuard)
+  unreportLink(
+    @Request() req,
+    @Body()
+    unreportLinkDto: {
+      linkId: string;
+    },
+  ) {
+    const membershipId = req.user.membershipId;
+    return this.appService.unreportLink(unreportLinkDto.linkId, membershipId);
   }
 
   @Post('removeLink')
