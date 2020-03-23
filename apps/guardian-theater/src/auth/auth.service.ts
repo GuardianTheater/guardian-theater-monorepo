@@ -68,37 +68,39 @@ export class AuthService {
     return jwt;
   }
 
-  async getMixerToken(code: string) {
-    const url = `https://mixer.com/api/v1/oauth/token?client_id=${process.env.MIXER_CLIENT_ID}&client_secret=${process.env.MIXER_CLIENT_SECRET}&code=${code}&grant_type=authorization_code&redirect_uri=https://api.guardian.theater/auth/mixer/callback`;
-    const res = await this.httpService
-      .post(url)
-      .toPromise()
-      .catch(e => {
-        return {} as AxiosResponse<any>;
-      });
-    return '';
-    // const userInfoUrl = `https://id.twitch.tv/oauth2/userinfo`;
-    // const userInfo = await this.httpService
-    //   .get(userInfoUrl, {
-    //     headers: {
-    //       Authorization: `Bearer ${res.data.access_token}`,
-    //     },
-    //   })
-    //   .toPromise()
-    //   .catch(e => {
-    //     console.log(e);
-    //     return {} as AxiosResponse<any>;
-    //   });
-    // const jwt = sign(
-    //   {
-    //     provider: 'twitch',
-    //     userId: userInfo.data.sub,
-    //   },
-    //   this.JWT_SECRET_KEY,
-    //   {
-    //     expiresIn: 3600,
-    //   },
-    // );
-    // return jwt;
-  }
+  // async getMixerToken(code: string) {
+  //   const url = `https://mixer.com/api/v1/oauth/token?client_id=${process.env.MIXER_CLIENT_ID}&client_secret=${process.env.MIXER_CLIENT_SECRET}&code=${code}&grant_type=authorization_code`;
+  //   const res = await this.httpService
+  //     .post(url)
+  //     .toPromise()
+  //     .catch(e => {
+  //       console.log(e);
+  //       return {} as AxiosResponse<any>;
+  //     });
+  //   console.log(res);
+  //   return '';
+  //   // const userInfoUrl = `https://id.twitch.tv/oauth2/userinfo`;
+  //   // const userInfo = await this.httpService
+  //   //   .get(userInfoUrl, {
+  //   //     headers: {
+  //   //       Authorization: `Bearer ${res.data.access_token}`,
+  //   //     },
+  //   //   })
+  //   //   .toPromise()
+  //   //   .catch(e => {
+  //   //     console.log(e);
+  //   //     return {} as AxiosResponse<any>;
+  //   //   });
+  //   // const jwt = sign(
+  //   //   {
+  //   //     provider: 'twitch',
+  //   //     userId: userInfo.data.sub,
+  //   //   },
+  //   //   this.JWT_SECRET_KEY,
+  //   //   {
+  //   //     expiresIn: 3600,
+  //   //   },
+  //   // );
+  //   // return jwt;
+  // }
 }

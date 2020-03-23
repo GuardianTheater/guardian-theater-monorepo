@@ -15,6 +15,9 @@ export class MixerService {
           query,
           limit: 1,
         },
+        headers: {
+          'Client-ID': process.env.MIXER_CLIENT_ID,
+        },
       })
       .toPromise();
   }
@@ -28,6 +31,9 @@ export class MixerService {
         url: `https://mixer.com/api/v1/channels/${channelId}/recordings`,
         params: {
           limit: 100,
+        },
+        headers: {
+          'Client-ID': process.env.MIXER_CLIENT_ID,
         },
       })
       .toPromise();
