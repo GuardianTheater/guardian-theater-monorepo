@@ -11,7 +11,7 @@ import { AccountLinkEntity } from './account-link.entity';
 
 @Entity()
 export class AccountLinkVoteEntity {
-  @PrimaryColumn({ unique: true })
+  @PrimaryColumn()
   id: string;
 
   @ManyToOne(
