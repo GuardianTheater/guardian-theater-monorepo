@@ -27,7 +27,7 @@ spec:
           {{- toYaml .Values.settings | nindent 12 }}
           securityContext:
             {{- toYaml .Values.securityContext | nindent 12 }}
-          image: "guardiantheater/activity-harvester:latest"
+          image: "guardiantheater/activity-harvester:{{ .Values.build }}"
           imagePullPolicy: Always
           resources:
             {{- toYaml .Values.resources | nindent 12 }}
