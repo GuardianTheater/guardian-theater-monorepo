@@ -1,5 +1,6 @@
 #!/bin/bash
 
+set -x 
 TMPFILE=$(mktemp)
 cat <<EOF > ${TMPFILE}
 FROM node:12-alpine
