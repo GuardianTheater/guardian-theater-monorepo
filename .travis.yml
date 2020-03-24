@@ -1,0 +1,9 @@
+---
+language: node
+services:
+  - docker
+
+before_build:
+  - set
+build:
+  - make
