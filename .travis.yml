@@ -6,4 +6,4 @@ jobs:
   include:
     - stage: "Build"
       name: "Build"
-      script: make
+      script: CI=$CI make
