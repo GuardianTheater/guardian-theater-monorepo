@@ -27,7 +27,7 @@ spec:
           {{- toYaml .Values.settings | nindent 12 }}
           securityContext:
             {{- toYaml .Values.securityContext | nindent 12 }}
-          image: "guardiantheater/guardian-theater:latest"
+          image: "guardiantheater/guardian-theater:{{ .Values.build }}"
           imagePullPolicy: Always
           ports:
             - name: http
