@@ -32,13 +32,11 @@ do
 done
   
 if [ ${CI} ] && [ "${TRAVIS_BRANCH}" == "master" ]; then
-  curl -LO https://storage.googleapis.com/kubernetes-release/release/`curl -s https://storage.googleapis.com/kubernetes-release/release/stable.txt`/bin/linux/amd64/kubectl
   echo ${KUBE_CONFIG} | base64 -d > kubeconfig
-  ecoh ${DEPLOY_CONFIG} | base64 -d > deploy-config.yaml
+  echo ${DEPLOY_CONFIG} | base64 -d > deploy-config.yaml
   export KUBECONFIG=kubeconfig
   helm_version=3.1.2
   wget -q https://get.helm.sh/helm-v${helm_version}-linux-amd64.tar.gz -O /tmp/helm.tgz && \
-    cd /tmp; tar zxvf helm.tgz; mv linux-amd64/helm /usr/local/bin/helm; chmod +x /usr/local/bin/helm && \
-    rm -rf /tmp/helm*; rm -rf /tmp/linux-amd64
-  helm upgrade -f deploy-config.yaml --set build=${TRAVIS_BUILD_NUMBER} guardian-theater guardian-theater -n default
+    cd /tmp; tar zxvf helm.tgz; cd -;
+  ./tmp/linux-amd64/helm upgrade -f deploy-config.yaml --set build=${TRAVIS_BUILD_NUMBER} guardian-theater guardian-theater -n default
 fi
