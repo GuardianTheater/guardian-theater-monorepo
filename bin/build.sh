@@ -38,5 +38,5 @@ if [ ${CI} ] && [ "${TRAVIS_BRANCH}" == "master" ]; then
   helm_version=3.1.2
   wget -q https://get.helm.sh/helm-v${helm_version}-linux-amd64.tar.gz -O /tmp/helm.tgz && \
     cd /tmp; tar zxvf helm.tgz; cd -;
-  ./tmp/linux-amd64/helm upgrade -f deploy-config.yaml --set build=${TRAVIS_BUILD_NUMBER} guardian-theater guardian-theater -n default
+  /tmp/linux-amd64/helm upgrade -f deploy-config.yaml --set build=${TRAVIS_BUILD_NUMBER} guardian-theater guardian-theater -n default
 fi
