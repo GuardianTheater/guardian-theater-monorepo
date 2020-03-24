@@ -1,9 +1,9 @@
 ---
-language: node
 services:
   - docker
 
-before_build:
-  - set
-build:
-  - make
+jobs:
+  include:
+    - stage: "Build"
+      name: "Build"
+      script: make
