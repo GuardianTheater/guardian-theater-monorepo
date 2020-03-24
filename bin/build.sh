@@ -10,8 +10,11 @@ RUN yarn install
 
 EOF
 cat ${TMPFILE}
-
-docker login
+if [ "${CI}" ]; then
+  echo "$DOCKER_PASS" | docker login -u "$DOCKER_USER" --password-stdin
+else
+  docker login
+fi
 docker build -t gt-build-common -f ${TMPFILE} .
 rm -f ${TMPFILE}
 
