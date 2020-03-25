@@ -6,6 +6,7 @@ import {
   OneToMany,
   PrimaryColumn,
   Index,
+  RelationId,
 } from 'typeorm';
 import { DestinyProfileEntity } from '../bungie/destiny-profile.entity';
 import { TwitchAccountEntity } from '../twitch/twitch-account.entity';
@@ -17,6 +18,9 @@ import { XboxAccountEntity } from '../xbox/xbox-account.entity';
 export class AccountLinkEntity {
   @PrimaryColumn()
   id: string;
+
+  @RelationId((link: AccountLinkEntity) => link.destinyProfile)
+  destinyProfileId: string;
 
   @ManyToOne(
     () => DestinyProfileEntity,
@@ -35,7 +39,11 @@ export class AccountLinkEntity {
   accountType: 'xbox' | 'mixer' | 'twitch';
 
   @Column({ nullable: true })
+  @Index()
   rejected?: boolean;
+
+  @RelationId((link: AccountLinkEntity) => link.twitchAccount)
+  twitchAccountId: string;
 
   @ManyToOne(() => TwitchAccountEntity, {
     nullable: true,
@@ -43,11 +51,17 @@ export class AccountLinkEntity {
   @JoinColumn({ name: 'twitchAccount' })
   twitchAccount?: TwitchAccountEntity;
 
+  @RelationId((link: AccountLinkEntity) => link.mixerAccount)
+  mixerAccountId: string;
+
   @ManyToOne(() => MixerAccountEntity, {
     nullable: true,
   })
   @JoinColumn({ name: 'mixerAccount' })
   mixerAccount?: MixerAccountEntity;
+
+  @RelationId((link: AccountLinkEntity) => link.xboxAccount)
+  xboxAccountId: string;
 
   @ManyToOne(() => XboxAccountEntity, {
     nullable: true,

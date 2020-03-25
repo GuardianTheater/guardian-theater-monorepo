@@ -11,7 +11,7 @@ import { MixerChannelEntity } from './mixer-channel.entity';
 @Entity()
 export class MixerRecordingEntity {
   @PrimaryColumn()
-  @Index({ unique: true })
+  @Index()
   id: number;
 
   @Column('timestamptz')

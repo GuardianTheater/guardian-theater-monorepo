@@ -4,7 +4,7 @@ import { XboxClipEntity } from './xbox-clip.entity';
 @Entity()
 export class XboxAccountEntity {
   @PrimaryColumn()
-  @Index({ unique: true })
+  @Index()
   gamertag: string;
 
   @OneToMany(

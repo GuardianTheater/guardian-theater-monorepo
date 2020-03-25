@@ -4,7 +4,7 @@ import { MixerRecordingEntity } from './mixer-recording.entity';
 @Entity()
 export class MixerChannelEntity {
   @PrimaryColumn()
-  @Index({ unique: true })
+  @Index()
   id: number;
 
   @Column()

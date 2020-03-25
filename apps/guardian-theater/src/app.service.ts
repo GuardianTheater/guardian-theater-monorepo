@@ -632,8 +632,9 @@ export class AppService {
       .innerJoin('destinyProfile.accountLinks', 'accountLinks')
       .innerJoin('accountLinks.twitchAccount', 'twitchAccount')
       .innerJoin('twitchAccount.videos', 'videos')
-      .where('entries.team = 17')
-      .andWhere('entries.timePlayedRange && videos.durationRange')
+      .where(
+        'entries.team = 17 AND entries.timePlayedRange && videos.durationRange',
+      )
       .limit(1000)
       .select('pgcr.instanceId');
     const pgcrsWithVideos18 = getConnection()
@@ -643,8 +644,9 @@ export class AppService {
       .innerJoin('destinyProfile.accountLinks', 'accountLinks')
       .innerJoin('accountLinks.twitchAccount', 'twitchAccount')
       .innerJoin('twitchAccount.videos', 'videos')
-      .where('entries.team = 18')
-      .andWhere('entries.timePlayedRange && videos.durationRange')
+      .where(
+        'entries.team = 18 AND entries.timePlayedRange && videos.durationRange',
+      )
       .limit(1000)
       .select('pgcr.instanceId');
     // return pgcrsWithVideos17.getMany();
@@ -657,8 +659,9 @@ export class AppService {
       .innerJoin('accountLinks.mixerAccount', 'mixerAccount')
       .innerJoin('mixerAccount.channel', 'channel')
       .innerJoin('channel.recordings', 'recordings')
-      .where('entries.team = 17')
-      .andWhere('entries.timePlayedRange && recordings.durationRange')
+      .where(
+        'entries.team = 17 AND entries.timePlayedRange && recordings.durationRange',
+      )
       .limit(1000)
       .select('pgcr.instanceId');
     const pgcrsWithRecordings18 = getConnection()
@@ -669,8 +672,9 @@ export class AppService {
       .innerJoin('accountLinks.mixerAccount', 'mixerAccount')
       .innerJoin('mixerAccount.channel', 'channel')
       .innerJoin('channel.recordings', 'recordings')
-      .where('entries.team = 18')
-      .andWhere('entries.timePlayedRange && recordings.durationRange')
+      .where(
+        'entries.team = 18 AND entries.timePlayedRange && recordings.durationRange',
+      )
       .limit(1000)
       .select('pgcr.instanceId');
 
