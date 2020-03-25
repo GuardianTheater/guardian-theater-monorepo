@@ -9,9 +9,7 @@ async function bootstrap() {
   while (true) {
     await appService
       .startHarvestQueue()
-      .catch(() =>
-        appService.logger.error(`Error running harvestActivityHistory`),
-      );
+      .catch(() => appService.logger.error(`Error running harvestActivityHistory`));
   }
 }
 bootstrap();
