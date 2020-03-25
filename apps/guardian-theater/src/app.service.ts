@@ -169,35 +169,74 @@ export class AppService {
     const membershipIdSet = new Set(membershipIds);
 
     const entries = await getConnection()
-      .createQueryBuilder(PgcrEntryEntity, 'entry')
-      .leftJoinAndSelect('entry.instance', 'instance')
-      .leftJoinAndSelect('instance.entries', 'entries')
-      .leftJoinAndSelect('entries.profile', 'destinyProfile')
-      .leftJoinAndSelect(
+      .createQueryBuilder()
+      .select(['entry.timePlayedRange', 'entry.team'])
+      .from(PgcrEntryEntity, 'entry')
+      .leftJoin('entry.instance', 'instance')
+      .addSelect([
+        'instance.instanceId',
+        'instance.activityHash',
+        'instance.directorActivityHash',
+        'instance.membershipType',
+        'instance.period',
+      ])
+      .leftJoin('instance.entries', 'entries')
+      .addSelect(['entries.timePlayedRange', 'entries.team'])
+      .leftJoin('entries.profile', 'destinyProfile')
+      .addSelect([
+        'destinyProfile.displayName',
+        'destinyProfile.membershipId',
+        'destinyProfile.membershipType',
+      ])
+      .leftJoin(
         'destinyProfile.accountLinks',
         'accountLinks',
         'accountLinks.rejected is null OR accountLinks.rejected != true',
       )
-      .leftJoinAndSelect('accountLinks.twitchAccount', 'twitchAccount')
-      .leftJoinAndSelect(
+      .addSelect([
+        'accountLinks.id',
+        'accountLinks.accountType',
+        'accountLinks.linkType',
+      ])
+      .leftJoin('accountLinks.twitchAccount', 'twitchAccount')
+      .addSelect(['twitchAccount.displayName'])
+      .leftJoin(
         'twitchAccount.videos',
         'videos',
         'entry.timePlayedRange && videos.durationRange',
       )
-      .leftJoinAndSelect('accountLinks.mixerAccount', 'mixerAccount')
-      .leftJoinAndSelect('mixerAccount.channel', 'channel')
-      .leftJoinAndSelect(
+      .addSelect([
+        'videos.durationRange',
+        'videos.url',
+        'videos.id',
+        'videos.thumbnailUrl',
+        'videos.title',
+      ])
+      .leftJoin('accountLinks.mixerAccount', 'mixerAccount')
+      .addSelect(['mixerAccount.username'])
+      .leftJoin('mixerAccount.channel', 'channel')
+      .addSelect(['channel.token'])
+      .leftJoin(
         'channel.recordings',
         'recordings',
         'entry.timePlayedRange && recordings.durationRange',
       )
-      .leftJoinAndSelect('accountLinks.xboxAccount', 'xboxAccount')
-      .leftJoinAndSelect(
+      .addSelect([
+        'recordings.durationRange',
+        'recordings.id',
+        'recordings.thumbnail',
+        'recordings.title',
+      ])
+      .leftJoin('accountLinks.xboxAccount', 'xboxAccount')
+      .addSelect(['xboxAccount.gamertag'])
+      .leftJoin(
         'xboxAccount.clips',
         'clips',
         'entry.timePlayedRange && clips.dateRecordedRange',
       )
-      .leftJoinAndSelect('destinyProfile.bnetProfile', 'bnetProfile')
+      .addSelect(['clips.gameClipId', 'clips.thumbnailUri'])
+      .leftJoin('destinyProfile.bnetProfile', 'bnetProfile')
+      .addSelect(['bnetProfile.membershipId'])
       .orderBy('instance.period', 'DESC')
       .where('entry.profile = ANY (:membershipIds)', {
         membershipIds,
@@ -210,7 +249,7 @@ export class AppService {
 
     const instances = [];
 
-    for (let i = 0; i < entries.length; i++) {
+    for (let i = 0; i < entries?.length; i++) {
       const entry = entries[i];
       const instance = {
         instanceId: entry.instance.instanceId,
@@ -236,7 +275,7 @@ export class AppService {
         title?: string;
         offset?: string;
       }[] = [];
-      for (let j = 0; j < entry.instance.entries.length; j++) {
+      for (let j = 0; j < entry.instance.entries?.length; j++) {
         const instanceEntryResponse = entry.instance.entries[j];
         const entryProfile = instanceEntryResponse.profile;
         const instanceEntry = {
@@ -253,19 +292,10 @@ export class AppService {
           JSON.parse(instanceEntryResponse.timePlayedRange)[0],
         );
         const accountLinks: AccountLinkEntity[] = [];
-        for (let k = 0; k < entryProfile.accountLinks.length; k++) {
+        for (let k = 0; k < entryProfile.accountLinks?.length; k++) {
           accountLinks.push(entryProfile.accountLinks[k]);
-
-          if (entryProfile.bnetProfile?.profiles?.length) {
-            for (let l = 0; l < entryProfile.bnetProfile.profiles.length; l++) {
-              const childProfile = entryProfile.bnetProfile.profiles[l];
-              for (let m = 0; m < childProfile.accountLinks?.length; m++) {
-                accountLinks.push(childProfile.accountLinks[m]);
-              }
-            }
-          }
         }
-        for (let k = 0; k < accountLinks.length; k++) {
+        for (let k = 0; k < accountLinks?.length; k++) {
           const accountLink = accountLinks[k];
           const linkInfo = {
             ...instanceEntry,
@@ -278,7 +308,7 @@ export class AppService {
               linkName: accountLink.xboxAccount.gamertag,
             };
             const gamertag = accountLink.xboxAccount.gamertag;
-            for (let l = 0; l < accountLink.xboxAccount.clips.length; l++) {
+            for (let l = 0; l < accountLink.xboxAccount.clips?.length; l++) {
               const xboxClip = accountLink.xboxAccount.clips[l];
               const video = {
                 ...entryLink,
@@ -297,7 +327,7 @@ export class AppService {
               linkName: accountLink.twitchAccount.displayName,
               linkId: accountLink.id,
             };
-            for (let l = 0; l < accountLink.twitchAccount.videos.length; l++) {
+            for (let l = 0; l < accountLink.twitchAccount.videos?.length; l++) {
               const twitchVideo = accountLink.twitchAccount.videos[l];
               const videoStartTime = new Date(
                 JSON.parse(twitchVideo.durationRange)[0],
@@ -325,7 +355,7 @@ export class AppService {
           if (accountLink.mixerAccount) {
             for (
               let l = 0;
-              l < accountLink.mixerAccount.channel.recordings.length;
+              l < accountLink.mixerAccount.channel.recordings?.length;
               l++
             ) {
               const entryLink = {
@@ -362,9 +392,9 @@ export class AppService {
         new Set(encounteredVideos.map(video => video.url)),
       );
       instance.videos = [];
-      for (let k = 0; k < uniqueUrls.length; k++) {
+      for (let k = 0; k < uniqueUrls?.length; k++) {
         const uniqueUrl = uniqueUrls[k];
-        for (let l = 0; l < encounteredVideos.length; l++) {
+        for (let l = 0; l < encounteredVideos?.length; l++) {
           const video = encounteredVideos[l];
           if (video.url === uniqueUrl) {
             instance.videos.push(video);
@@ -372,7 +402,7 @@ export class AppService {
           }
         }
       }
-      if (instance.videos.length) {
+      if (instance.videos?.length) {
         instances.push(instance);
       }
     }
