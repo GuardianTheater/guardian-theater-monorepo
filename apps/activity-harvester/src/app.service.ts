@@ -112,45 +112,47 @@ export class AppService {
 
     const activities: DestinyHistoricalStatsPeriodGroup[] = [];
 
-    for (let i = 0; i < loadedProfile.characterIds.length; i++) {
-      const characterId = loadedProfile.characterIds[i];
+    if (loadedProfile?.characterIds?.length) {
+      for (let i = 0; i < loadedProfile.characterIds?.length; i++) {
+        const characterId = loadedProfile.characterIds[i];
 
-      const history: ServerResponse<DestinyActivityHistoryResults> = await getActivityHistory(
-        config => this.bungieService.bungieRequest(config),
-        {
-          membershipType: profile.membershipType,
-          destinyMembershipId: profile.membershipId,
-          characterId,
-          count: 250,
-        },
-      )
-        .catch(() => {
-          this.logger.error(
-            `Error fetching Activity History for ${profile.membershipType}-${profile.membershipId}-${characterId}`,
-          );
-          return {} as ServerResponse<DestinyActivityHistoryResults>;
-        })
-        .finally(() => {
-          this.logger.log(
-            `Fetched Activity History for ${profile.membershipType}-${profile.membershipId}-${characterId} from Bungie`,
-          );
-        });
+        const history: ServerResponse<DestinyActivityHistoryResults> = await getActivityHistory(
+          config => this.bungieService.bungieRequest(config),
+          {
+            membershipType: profile.membershipType,
+            destinyMembershipId: profile.membershipId,
+            characterId,
+            count: 250,
+          },
+        )
+          .catch(() => {
+            this.logger.error(
+              `Error fetching Activity History for ${profile.membershipType}-${profile.membershipId}-${characterId}`,
+            );
+            return {} as ServerResponse<DestinyActivityHistoryResults>;
+          })
+          .finally(() => {
+            this.logger.log(
+              `Fetched Activity History for ${profile.membershipType}-${profile.membershipId}-${characterId} from Bungie`,
+            );
+          });
 
-      if (!history.Response || !history.Response.activities) {
-        continue;
-      }
-      for (let k = 0; k < history.Response.activities.length; k++) {
-        const activity = history.Response.activities[k];
-
-        if (new Date(activity.period) < dateCutOff) {
-          break;
-        }
-
-        if (skipActivities.has(activity.activityDetails.instanceId)) {
+        if (!history.Response || !history.Response.activities) {
           continue;
         }
+        for (let k = 0; k < history.Response.activities.length; k++) {
+          const activity = history.Response.activities[k];
 
-        activities.push(activity);
+          if (new Date(activity.period) < dateCutOff) {
+            break;
+          }
+
+          if (skipActivities.has(activity.activityDetails.instanceId)) {
+            continue;
+          }
+
+          activities.push(activity);
+        }
       }
     }
 
@@ -346,12 +348,19 @@ export class AppService {
           this.logger.log(`Saved ${uniqueEntries.length} Entries.`),
         );
     }
-    const profileEntity = new DestinyProfileEntity();
-    profileEntity.membershipId = loadedProfile.userInfo.membershipId;
-    profileEntity.displayName = loadedProfile.userInfo.displayName;
-    profileEntity.membershipType = loadedProfile.userInfo.membershipType;
-    profileEntity.activitiesLastChecked = new Date().toISOString();
 
+    const profileEntity = new DestinyProfileEntity();
+    if (loadedProfile) {
+      profileEntity.membershipId = loadedProfile.userInfo.membershipId;
+      profileEntity.displayName = loadedProfile.userInfo.displayName;
+      profileEntity.membershipType = loadedProfile.userInfo.membershipType;
+      profileEntity.activitiesLastChecked = new Date().toISOString();
+    } else {
+      profileEntity.membershipId = profile.membershipId;
+      profileEntity.displayName = profile.displayName;
+      profileEntity.membershipType = profile.membershipType;
+      profileEntity.activitiesLastChecked = new Date().toISOString();
+    }
     await upsert(
       DestinyProfileEntity,
       profileEntity,
