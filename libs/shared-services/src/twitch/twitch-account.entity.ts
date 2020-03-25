@@ -4,7 +4,7 @@ import { TwitchVideoEntity } from './twitch-video.entity';
 @Entity()
 export class TwitchAccountEntity {
   @PrimaryColumn()
-  @Index({ unique: true })
+  @Index()
   id: string;
 
   @Column()

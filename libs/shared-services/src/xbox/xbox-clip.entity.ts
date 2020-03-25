@@ -5,13 +5,14 @@ import {
   ManyToOne,
   JoinColumn,
   Index,
+  RelationId,
 } from 'typeorm';
 import { XboxAccountEntity } from './xbox-account.entity';
 
 @Entity()
 export class XboxClipEntity {
   @PrimaryColumn()
-  @Index({ unique: true })
+  @Index()
   gameClipId: string;
 
   @Column()
@@ -20,12 +21,12 @@ export class XboxClipEntity {
   @Column()
   xuid: string;
 
+  @RelationId((clip: XboxClipEntity) => clip.xboxAccount)
+  xboxAccountId: string;
+
   @ManyToOne(
     () => XboxAccountEntity,
     xboxAccount => xboxAccount.clips,
-    {
-      eager: true,
-    },
   )
   @JoinColumn({ name: 'xboxAccount' })
   @Index()

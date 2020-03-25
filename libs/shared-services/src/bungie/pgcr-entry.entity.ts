@@ -1,9 +1,20 @@
-import { Entity, ManyToOne, Column, JoinColumn, Index } from 'typeorm';
+import {
+  Entity,
+  ManyToOne,
+  Column,
+  JoinColumn,
+  Index,
+  RelationId,
+} from 'typeorm';
 import { PgcrEntity } from './pgcr.entity';
 import { DestinyProfileEntity } from './destiny-profile.entity';
 
 @Entity()
+@Index(['team', 'instance'])
 export class PgcrEntryEntity {
+  @RelationId((entry: PgcrEntryEntity) => entry.profile)
+  profileId: string;
+
   @ManyToOne(
     () => DestinyProfileEntity,
     profile => profile.entries,
@@ -16,6 +27,9 @@ export class PgcrEntryEntity {
   })
   @Index()
   profile: DestinyProfileEntity;
+
+  @RelationId((entry: PgcrEntryEntity) => entry.instance)
+  instanceId: string;
 
   @ManyToOne(
     () => PgcrEntity,
@@ -37,6 +51,5 @@ export class PgcrEntryEntity {
   @Column({
     nullable: true,
   })
-  @Index()
   team?: number;
 }

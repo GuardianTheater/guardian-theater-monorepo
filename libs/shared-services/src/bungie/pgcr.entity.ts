@@ -5,7 +5,7 @@ import { PgcrEntryEntity } from './pgcr-entry.entity';
 @Entity()
 export class PgcrEntity {
   @PrimaryColumn()
-  @Index({ unique: true })
+  @Index()
   instanceId: string;
 
   @Column()

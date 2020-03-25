@@ -5,14 +5,18 @@ import {
   Column,
   JoinColumn,
   Index,
+  RelationId,
 } from 'typeorm';
 import { TwitchAccountEntity } from './twitch-account.entity';
 
 @Entity()
 export class TwitchVideoEntity {
   @PrimaryColumn()
-  @Index({ unique: true })
+  @Index()
   id: string;
+
+  @RelationId((video: TwitchVideoEntity) => video.user)
+  userId: string;
 
   @ManyToOne(
     () => TwitchAccountEntity,

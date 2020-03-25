@@ -14,7 +14,7 @@ import { AccountLinkEntity } from '../helpers/account-link.entity';
 @Entity()
 export class DestinyProfileEntity {
   @PrimaryColumn()
-  @Index({ unique: true })
+  @Index()
   membershipId: string;
 
   @Column()

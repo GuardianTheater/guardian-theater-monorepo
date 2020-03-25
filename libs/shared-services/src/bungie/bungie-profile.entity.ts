@@ -6,7 +6,7 @@ import { AccountLinkVoteEntity } from '../helpers/account-link-vote.entity';
 @Entity()
 export class BungieProfileEntity {
   @PrimaryColumn()
-  @Index({ unique: true })
+  @Index()
   membershipId: string;
 
   @Column()
