@@ -409,6 +409,10 @@ export class AppService {
       }
     }
 
+    instances.sort(
+      (a, b) => new Date(b.period).getTime() - new Date(a.period).getTime(),
+    );
+
     return {
       profile,
       instances,
