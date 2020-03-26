@@ -237,8 +237,10 @@ export class AppService {
       .addSelect(['clips.gameClipId', 'clips.thumbnailUri'])
       .leftJoin('destinyProfile.bnetProfile', 'bnetProfile')
       .addSelect(['bnetProfile.membershipId'])
-      .orderBy('instance.period', 'DESC')
-      .where('entry.profile = ANY (:membershipIds)', {
+      .where(
+        '(entry.timePlayedRange && videos.durationRange OR entry.timePlayedRange && recordings.durationRange OR entry.timePlayedRange && clips.dateRecordedRange)',
+      )
+      .andWhere('entry.profile = ANY (:membershipIds)', {
         membershipIds,
       })
       .getMany()
