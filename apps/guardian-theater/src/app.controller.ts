@@ -25,19 +25,19 @@ export class AppController {
 
   @Get('data/:membershipId')
   @CacheTTL(30)
-  getStoredData(@Param('membershipId') membershipId: string) {
+  async getStoredData(@Param('membershipId') membershipId: string) {
     return this.appService.getInfoAboutMembershipId(membershipId);
   }
 
   @Get('streamervsstreamer')
   @CacheTTL(300)
-  getStreamerVsStreamer() {
+  async getStreamerVsStreamer() {
     return this.appService.getStreamerVsStreamerInstances();
   }
 
   @Get('encounteredClips/:membershipType/:membershipId')
   @CacheTTL(300)
-  getAllEncounteredVideos(
+  async getAllEncounteredVideos(
     @Param('membershipType') membershipType: BungieMembershipType,
     @Param('membershipId') membershipId: string,
   ) {
@@ -49,27 +49,27 @@ export class AppController {
 
   @Get('linkedAccounts')
   @UseGuards(JwtAuthGuard)
-  getLinkedAccounts(@Request() req) {
+  async getLinkedAccounts(@Request() req) {
     const membershipId = req.user.membershipId;
     return this.appService.getAllLinkedAccounts(membershipId);
   }
 
   @Get('instance/:instanceId')
   @CacheTTL(300)
-  getClipsForActivity(@Param('instanceId') instanceId: string) {
+  async getClipsForActivity(@Param('instanceId') instanceId: string) {
     return this.appService.getVideosForInstance(instanceId);
   }
 
   @Get('getVotes')
   @UseGuards(JwtAuthGuard)
-  getVotes(@Request() req) {
+  async getVotes(@Request() req) {
     const membershipId = req.user.membershipId;
     return this.appService.getAllVotes(membershipId);
   }
 
   @Post('reportLink')
   @UseGuards(JwtAuthGuard)
-  reportLink(
+  async reportLink(
     @Request() req,
     @Body()
     reportLinkDto: {
@@ -82,7 +82,7 @@ export class AppController {
 
   @Post('unreportLink')
   @UseGuards(JwtAuthGuard)
-  unreportLink(
+  async unreportLink(
     @Request() req,
     @Body()
     unreportLinkDto: {
@@ -95,7 +95,7 @@ export class AppController {
 
   @Post('removeLink')
   @UseGuards(JwtAuthGuard)
-  removeLink(
+  async removeLink(
     @Request() req,
     @Body()
     removeLinkDto: {
