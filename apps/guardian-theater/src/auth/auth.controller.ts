@@ -24,13 +24,13 @@ export class AuthController {
 
   @Get('bungie')
   @UseGuards(BungieAuthGuard)
-  bungieLogin() {
+  async bungieLogin() {
     //
   }
 
   @Get('bungie/callback')
   @UseGuards(BungieAuthGuard)
-  bungieLoginCallback(@Req() req, @Res() res) {
+  async bungieLoginCallback(@Req() req, @Res() res) {
     const jwt: string = req.user.jwt;
     const refreshToken: string = req.user.refreshToken;
     if (jwt)
@@ -43,7 +43,7 @@ export class AuthController {
   }
 
   @Get('twitch')
-  twitchLogin(@Req() req, @Res() res) {
+  async twitchLogin(@Req() req, @Res() res) {
     res.redirect(
       `https://id.twitch.tv/oauth2/authorize?client_id=${process.env.TWITCH_CLIENT_ID}&redirect_uri=${process.env.BASE_URL}/auth/twitch/callback&response_type=code`,
     );
