@@ -3,6 +3,10 @@
 set -x
 IMAGE=${1:?}
 
+if [ "${CI}" ]; then
+  echo "$DOCKER_PASS" | docker login -u "$DOCKER_USER" --password-stdin || exit 1
+fi
+
 docker build --pull --build-arg APP=${IMAGE} . -t guardiantheater/${IMAGE}:latest 
 
 if [ ${CI} ] && [ "${TRAVIS_BRANCH}" == "master" ]; then
