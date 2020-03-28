@@ -19,5 +19,8 @@ common:
 image:
 	./bin/build-image.sh $(RUN_ARGS)
 
+deploy:
+	./bin/deploy.sh
+
 travis:
 	./bin/gen-travis-ci.sh
