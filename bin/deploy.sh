@@ -1,6 +1,6 @@
 #!/bin/bash
 
-
+set -x
 if [ ${CI} ] && [ "${TRAVIS_BRANCH}" == "master" ]; then
   echo ${KUBE_CONFIG} | base64 -d > kubeconfig
   echo ${DEPLOY_CONFIG} | base64 -d > deploy-config.yaml

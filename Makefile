@@ -10,7 +10,11 @@ ifeq (image,$(firstword $(MAKECMDGOALS)))
 endif
 
 all:
+	$(MAKE) common
 	./bin/build.sh
+
+common:
+	./bin/build-common.sh
 
 image:
 	./bin/build-image.sh $(RUN_ARGS)
