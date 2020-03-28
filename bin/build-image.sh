@@ -1,5 +1,6 @@
 #!/bin/bash
 
+set -x
 IMAGE=${1:?}
 
 docker build --pull --build-arg APP=${IMAGE} . -t guardiantheater/${IMAGE}:latest 
