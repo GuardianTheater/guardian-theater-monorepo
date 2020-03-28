@@ -1,4 +1,4 @@
-FROM gt-build-common AS builder
+FROM guardiantheater/gt-build-common:latest AS builder
 
 ARG APP=guardian-theater
 WORKDIR /app
