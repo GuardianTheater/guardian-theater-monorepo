@@ -60,6 +60,14 @@ $ npm run test:e2e
 $ npm run test:cov
 ```
 
+## Building
+
+You can use `make` to build everything locally. It also includes a helm chart if you want to install the resulting images into Kubernetes. You'll need to adjust the image names.
+
+### Updating .travis.yml
+
+To support parallel builds the .travis.yml file must be generated if services are added/removed/renamed. Run `make travis` and commit the updated .travis.yml file.
+
 ## Support
 
 Nest is an MIT-licensed open source project. It can grow thanks to the sponsors and support by the amazing backers. If you'd like to join them, please [read more here](https://docs.nestjs.com/support).
