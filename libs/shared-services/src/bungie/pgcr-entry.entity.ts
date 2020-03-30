@@ -10,7 +10,6 @@ import { PgcrEntity } from './pgcr.entity';
 import { DestinyProfileEntity } from './destiny-profile.entity';
 
 @Entity()
-@Index(['team', 'timePlayedRange', 'instance', 'profile'])
 export class PgcrEntryEntity {
   @RelationId((entry: PgcrEntryEntity) => entry.profile)
   profileId: string;
@@ -45,7 +44,6 @@ export class PgcrEntryEntity {
   instance: PgcrEntity;
 
   @Column('tstzrange')
-  @Index()
   timePlayedRange: string;
 
   @Column({
