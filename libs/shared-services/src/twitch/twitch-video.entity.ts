@@ -29,7 +29,6 @@ export class TwitchVideoEntity {
   user: TwitchAccountEntity;
 
   @Column('tstzrange')
-  @Index()
   durationRange: string;
 
   @Column()

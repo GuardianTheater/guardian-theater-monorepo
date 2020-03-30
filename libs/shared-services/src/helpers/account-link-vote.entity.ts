@@ -24,7 +24,6 @@ export class AccountLinkVoteEntity {
   @JoinColumn({
     name: 'bnetProfile',
   })
-  @Index()
   bnetProfile: BungieProfileEntity;
 
   @ManyToOne(

@@ -12,7 +12,6 @@ import { XboxAccountEntity } from './xbox-account.entity';
 @Entity()
 export class XboxClipEntity {
   @PrimaryColumn()
-  @Index()
   gameClipId: string;
 
   @Column()
@@ -33,7 +32,6 @@ export class XboxClipEntity {
   xboxAccount: XboxAccountEntity;
 
   @Column('tstzrange')
-  @Index()
   dateRecordedRange: string;
 
   @Column()

@@ -39,7 +39,6 @@ export class AccountLinkEntity {
   accountType: 'xbox' | 'mixer' | 'twitch';
 
   @Column({ nullable: true })
-  @Index()
   rejected?: boolean;
 
   @RelationId((link: AccountLinkEntity) => link.twitchAccount)

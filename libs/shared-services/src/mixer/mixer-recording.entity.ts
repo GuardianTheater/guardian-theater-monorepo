@@ -18,7 +18,6 @@ export class MixerRecordingEntity {
   expiresAt: string;
 
   @Column('tstzrange')
-  @Index()
   durationRange: string;
 
   @Column({ nullable: true })
