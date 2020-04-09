@@ -421,36 +421,75 @@ export class AppService {
 
   async getVideosForInstance(instanceId: string) {
     const rawInstance = await getConnection()
-      .createQueryBuilder(PgcrEntity, 'instance')
-      .leftJoinAndSelect('instance.entries', 'entries')
-      .leftJoinAndSelect('entries.profile', 'destinyProfile')
-
-      .leftJoinAndSelect(
+      .createQueryBuilder()
+      .select([
+        'instance.instanceId',
+        'instance.activityHash',
+        'instance.directorActivityHash',
+        'instance.membershipType',
+        'instance.period',
+      ])
+      .from(PgcrEntity, 'instance')
+      .leftJoin('instance.entries', 'entries')
+      .addSelect(['entries.timePlayedRange', 'entries.team'])
+      .leftJoin('entries.profile', 'destinyProfile')
+      .addSelect([
+        'destinyProfile.displayName',
+        'destinyProfile.membershipId',
+        'destinyProfile.membershipType',
+      ])
+      .leftJoin(
         'destinyProfile.accountLinks',
         'accountLinks',
         'accountLinks.rejected is null OR accountLinks.rejected != true',
       )
-      .leftJoinAndSelect('accountLinks.twitchAccount', 'twitchAccount')
-      .leftJoinAndSelect(
+      .addSelect([
+        'accountLinks.id',
+        'accountLinks.accountType',
+        'accountLinks.linkType',
+      ])
+      .leftJoin('accountLinks.twitchAccount', 'twitchAccount')
+      .addSelect(['twitchAccount.displayName'])
+      .leftJoin(
         'twitchAccount.videos',
         'videos',
         'entries.timePlayedRange && videos.durationRange',
       )
-      .leftJoinAndSelect('accountLinks.mixerAccount', 'mixerAccount')
-      .leftJoinAndSelect('mixerAccount.channel', 'channel')
-      .leftJoinAndSelect(
+      .addSelect([
+        'videos.durationRange',
+        'videos.url',
+        'videos.id',
+        'videos.thumbnailUrl',
+        'videos.title',
+      ])
+      .leftJoin('accountLinks.mixerAccount', 'mixerAccount')
+      .addSelect(['mixerAccount.username'])
+      .leftJoin('mixerAccount.channel', 'channel')
+      .addSelect(['channel.token'])
+      .leftJoin(
         'channel.recordings',
         'recordings',
         'entries.timePlayedRange && recordings.durationRange',
       )
-      .leftJoinAndSelect('accountLinks.xboxAccount', 'xboxAccount')
-      .leftJoinAndSelect(
+      .addSelect([
+        'recordings.durationRange',
+        'recordings.id',
+        'recordings.thumbnail',
+        'recordings.title',
+      ])
+      .leftJoin('accountLinks.xboxAccount', 'xboxAccount')
+      .addSelect(['xboxAccount.gamertag'])
+      .leftJoin(
         'xboxAccount.clips',
         'clips',
         'entries.timePlayedRange && clips.dateRecordedRange',
       )
-      .leftJoinAndSelect('destinyProfile.bnetProfile', 'bnetProfile')
-      .orderBy('instance.period', 'DESC')
+      .addSelect(['clips.gameClipId', 'clips.thumbnailUri'])
+      .leftJoin('destinyProfile.bnetProfile', 'bnetProfile')
+      .addSelect(['bnetProfile.membershipId'])
+      .where(
+        '(entries.timePlayedRange && videos.durationRange OR entries.timePlayedRange && recordings.durationRange OR entries.timePlayedRange && clips.dateRecordedRange)',
+      )
       .where('instance = :instanceId', {
         instanceId,
       })
@@ -682,92 +721,35 @@ export class AppService {
 
   async getStreamerVsStreamerInstances() {
     return [];
-    const pgcrsWithVideos17 = getConnection()
-      .createQueryBuilder(PgcrEntity, 'pgcr')
-      .innerJoin('pgcr.entries', 'entries')
-      .innerJoin('entries.profile', 'destinyProfile')
-      .innerJoin('destinyProfile.accountLinks', 'accountLinks')
-      .innerJoin('accountLinks.twitchAccount', 'twitchAccount')
-      .innerJoin('twitchAccount.videos', 'videos')
-      .where(
-        'entries.team = 17 AND entries.timePlayedRange && videos.durationRange',
-      )
-      .limit(1000)
-      .select('pgcr.instanceId');
-    const pgcrsWithVideos18 = getConnection()
-      .createQueryBuilder(PgcrEntity, 'pgcr')
-      .innerJoin('pgcr.entries', 'entries')
-      .innerJoin('entries.profile', 'destinyProfile')
-      .innerJoin('destinyProfile.accountLinks', 'accountLinks')
-      .innerJoin('accountLinks.twitchAccount', 'twitchAccount')
-      .innerJoin('twitchAccount.videos', 'videos')
-      .where(
-        'entries.team = 18 AND entries.timePlayedRange && videos.durationRange',
-      )
-      .limit(1000)
-      .select('pgcr.instanceId');
-    // return pgcrsWithVideos17.getMany();
+    const rawInstances: {
+      instance_instanceId: string;
+      instance_membershipType: number;
+      instance_period: Date;
+      instance_activityHash: string;
+      instance_directorActivityHash?: string;
+      entries_timePlayedRange: string;
+      entries_team: number;
+      destinyProfile_membershipId: string;
+      destinyProfile_membershipType: number;
+      destinyProfile_displayName: string;
+      accountLinks_id: string;
+      accountLinks_linkType: string;
+      accountLinks_accountType: string;
+      twitchAccount_displayName?: string;
+      videos_id?: string;
+      videos_durationRange?: string;
+      videos_title?: string;
+      videos_url?: string;
+      videos_thumbnailUrl?: string;
+      mixerAccount_username?: string;
+      channel_token?: string;
+      recordings_id?: number;
+      recordings_durationRange?: string;
+      recordings_title?: string;
+      recordings_thumbnail?: string;
+      bnetProfile_membershipId?: string;
+    }[] = await getConnection().query(`SELECT * FROM streamervsstreamer`);
 
-    const pgcrsWithRecordings17 = getConnection()
-      .createQueryBuilder(PgcrEntity, 'pgcr')
-      .innerJoin('pgcr.entries', 'entries')
-      .innerJoin('entries.profile', 'destinyProfile')
-      .innerJoin('destinyProfile.accountLinks', 'accountLinks')
-      .innerJoin('accountLinks.mixerAccount', 'mixerAccount')
-      .innerJoin('mixerAccount.channel', 'channel')
-      .innerJoin('channel.recordings', 'recordings')
-      .where(
-        'entries.team = 17 AND entries.timePlayedRange && recordings.durationRange',
-      )
-      .limit(1000)
-      .select('pgcr.instanceId');
-    const pgcrsWithRecordings18 = getConnection()
-      .createQueryBuilder(PgcrEntity, 'pgcr')
-      .innerJoin('pgcr.entries', 'entries')
-      .innerJoin('entries.profile', 'destinyProfile')
-      .innerJoin('destinyProfile.accountLinks', 'accountLinks')
-      .innerJoin('accountLinks.mixerAccount', 'mixerAccount')
-      .innerJoin('mixerAccount.channel', 'channel')
-      .innerJoin('channel.recordings', 'recordings')
-      .where(
-        'entries.team = 18 AND entries.timePlayedRange && recordings.durationRange',
-      )
-      .limit(1000)
-      .select('pgcr.instanceId');
-
-    // return pgcrsWithRecordings18.getMany();
-
-    const pgcrs = getConnection()
-      .createQueryBuilder(PgcrEntity, 'pgcr')
-      .leftJoinAndSelect('pgcr.entries', 'entries')
-      .leftJoinAndSelect('entries.profile', 'destinyProfile')
-      .leftJoinAndSelect('destinyProfile.accountLinks', 'accountLinks')
-      .leftJoinAndSelect('accountLinks.twitchAccount', 'twitchAccount')
-      .leftJoinAndSelect(
-        'twitchAccount.videos',
-        'videos',
-        'entries.timePlayedRange && videos.durationRange',
-      )
-      .leftJoinAndSelect('accountLinks.mixerAccount', 'mixerAccount')
-      .leftJoinAndSelect('mixerAccount.channel', 'channel')
-      .leftJoinAndSelect(
-        'channel.recordings',
-        'recordings',
-        'entries.timePlayedRange && recordings.durationRange',
-      )
-      .leftJoinAndSelect('destinyProfile.bnetProfile', 'bnetProfile')
-      .where(
-        `(pgcr.instanceId IN (${pgcrsWithVideos17.getQuery()}) OR pgcr.instanceId IN (${pgcrsWithRecordings17.getQuery()})) AND (pgcr.instanceId IN (${pgcrsWithVideos18.getQuery()}) OR pgcr.instanceId IN (${pgcrsWithRecordings18.getQuery()}))`,
-      )
-      .orderBy('pgcr.period', 'DESC')
-      .limit(1000)
-      .getMany()
-      .catch(e => {
-        this.logger.log(e);
-        return [] as PgcrEntity[];
-      });
-
-    const rawInstances = await pgcrs;
     const instances: {
       instanceId: string;
       activityHash: number;
@@ -790,18 +772,54 @@ export class AppService {
         offset?: string;
       }[];
     }[] = [];
+
     for (let i = 0; i < rawInstances.length; i++) {
       const rawInstance = rawInstances[i];
-      const instance = {
-        instanceId: rawInstance.instanceId,
-        activityHash: parseInt(rawInstance.activityHash, 10),
-        directorActivityHash: parseInt(rawInstance.directorActivityHash, 10),
-        membershipType: rawInstance.membershipType,
-        period: rawInstance.period,
-        team: 17,
-        videos: [],
+      let instance: {
+        instanceId: string;
+        activityHash: number;
+        directorActivityHash: number;
+        membershipType: BungieMembershipType;
+        period: string;
+        team: number;
+        videos: {
+          displayName: string;
+          membershipId: string;
+          membershipType: number;
+          team: number;
+          linkName: string;
+          linkId?: string;
+          type: string;
+          url: string;
+          embedUrl: string;
+          thumbnail: string;
+          title?: string;
+          offset?: string;
+        }[];
       };
-      const encounteredVideos: {
+      if (
+        !instances.length ||
+        instances[instances.length - 1].instanceId !==
+          rawInstance.instance_instanceId
+      ) {
+        instance = {
+          instanceId: rawInstance.instance_instanceId,
+          activityHash: parseInt(rawInstance.instance_activityHash, 10),
+          directorActivityHash: parseInt(
+            rawInstance.instance_directorActivityHash,
+            10,
+          ),
+          membershipType: rawInstance.instance_membershipType,
+          period: rawInstance.instance_period.toISOString(),
+          team: 17,
+          videos: [],
+        };
+        instances.push(instance);
+      } else {
+        instance = instances[instances.length - 1];
+      }
+
+      let encounteredVideo: {
         displayName: string;
         membershipId: string;
         membershipType: number;
@@ -814,123 +832,76 @@ export class AppService {
         thumbnail: string;
         title?: string;
         offset?: string;
-      }[] = [];
-      for (let j = 0; j < rawInstance.entries?.length; j++) {
-        const instanceEntryResponse = rawInstance.entries[j];
-        const entryProfile = instanceEntryResponse.profile;
-        const instanceEntry = {
-          displayName: entryProfile.displayName,
-          membershipId: entryProfile.membershipId,
-          membershipType: entryProfile.membershipType,
-          team: instanceEntryResponse.team,
-        };
-        const entryStartTime = new Date(
-          JSON.parse(instanceEntryResponse.timePlayedRange)[0],
-        );
-        const accountLinks: AccountLinkEntity[] = [];
-        for (let k = 0; k < entryProfile.accountLinks.length; k++) {
-          accountLinks.push(entryProfile.accountLinks[k]);
-
-          if (entryProfile.bnetProfile?.profiles?.length) {
-            for (let l = 0; l < entryProfile.bnetProfile.profiles.length; l++) {
-              const childProfile = entryProfile.bnetProfile.profiles[l];
-              for (let m = 0; m < childProfile.accountLinks?.length; m++) {
-                accountLinks.push(childProfile.accountLinks[m]);
-              }
-            }
-          }
-        }
-        for (let k = 0; k < accountLinks?.length; k++) {
-          const accountLink = accountLinks[k];
-          const linkInfo = {
-            ...instanceEntry,
-            type: accountLink.accountType,
-            linkType: accountLink.linkType,
-          };
-          if (accountLink.twitchAccount) {
-            const entryLink = {
-              ...linkInfo,
-              linkName: accountLink.twitchAccount.displayName,
-              linkId: accountLink.id,
-            };
-            for (let l = 0; l < accountLink.twitchAccount.videos?.length; l++) {
-              const twitchVideo = accountLink.twitchAccount.videos[l];
-              const videoStartTime = new Date(
-                JSON.parse(twitchVideo.durationRange)[0],
-              );
-              let offset = 0;
-              if (entryStartTime > videoStartTime) {
-                offset = Math.floor(
-                  (entryStartTime.getTime() - videoStartTime.getTime()) / 1000,
-                );
-              }
-              const twitchOffset = convertSecondsToTwitchDuration(offset);
-              const video = {
-                ...entryLink,
-                url: `${twitchVideo.url}?t=${twitchOffset}`,
-                embedUrl: `//player.twitch.tv/?video=${twitchVideo.id}&time=${twitchOffset}`,
-                thumbnail: twitchVideo.thumbnailUrl
-                  .replace('%{width}', '960')
-                  .replace('%{height}', '540'),
-                title: twitchVideo.title,
-                offset: twitchOffset,
-              };
-              encounteredVideos.push(video);
-            }
-          }
-          if (accountLink.mixerAccount) {
-            for (
-              let l = 0;
-              l < accountLink.mixerAccount.channel.recordings?.length;
-              l++
-            ) {
-              const entryLink = {
-                ...linkInfo,
-                linkName: accountLink.mixerAccount.username,
-                linkId: accountLink.id,
-              };
-              const mixerRecording =
-                accountLink.mixerAccount.channel.recordings[l];
-              const videoStartTime = new Date(
-                JSON.parse(mixerRecording.durationRange)[0],
-              );
-              let offset = 0;
-              if (entryStartTime > videoStartTime) {
-                offset = Math.floor(
-                  (entryStartTime.getTime() - videoStartTime.getTime()) / 1000,
-                );
-              }
-              const mixerOffset = convertSecondsToTwitchDuration(offset);
-              const video = {
-                ...entryLink,
-                url: `https://mixer.com/${accountLink.mixerAccount?.channel?.token}?vod=${mixerRecording.id}&t=${mixerOffset}`,
-                thumbnail: mixerRecording.thumbnail,
-                title: mixerRecording.title,
-                embedUrl: `//mixer.com/embed/player/${accountLink.mixerAccount?.channel?.token}?vod=${mixerRecording.id}&t=${mixerOffset}`,
-                offset: mixerOffset,
-              };
-              encounteredVideos.push(video);
-            }
-          }
-        }
-      }
-      const uniqueUrls = Array.from(
-        new Set(encounteredVideos.map(video => video.url)),
+      };
+      const instanceEntry = {
+        displayName: rawInstance.destinyProfile_displayName,
+        membershipId: rawInstance.destinyProfile_membershipId,
+        membershipType: rawInstance.destinyProfile_membershipType,
+        team: rawInstance.entries_team,
+      };
+      const entryStartTime = new Date(
+        JSON.parse(rawInstance.entries_timePlayedRange)[0],
       );
-      instance.videos = [];
-      for (let k = 0; k < uniqueUrls.length; k++) {
-        const uniqueUrl = uniqueUrls[k];
-        for (let l = 0; l < encounteredVideos.length; l++) {
-          const video = encounteredVideos[l];
-          if (video.url === uniqueUrl) {
-            instance.videos.push(video);
-            break;
-          }
+      const linkInfo = {
+        ...instanceEntry,
+        type: rawInstance.accountLinks_accountType,
+        linkType: rawInstance.accountLinks_linkType,
+      };
+      if (rawInstance.twitchAccount_displayName) {
+        const entryLink = {
+          ...linkInfo,
+          linkName: rawInstance.twitchAccount_displayName,
+          linkId: rawInstance.accountLinks_id,
+        };
+        const videoStartTime = new Date(
+          JSON.parse(rawInstance.videos_durationRange)[0],
+        );
+        let offset = 0;
+        if (entryStartTime > videoStartTime) {
+          offset = Math.floor(
+            (entryStartTime.getTime() - videoStartTime.getTime()) / 1000,
+          );
         }
+        const twitchOffset = convertSecondsToTwitchDuration(offset);
+        const video = {
+          ...entryLink,
+          url: `${rawInstance.videos_url}?t=${twitchOffset}`,
+          embedUrl: `//player.twitch.tv/?video=${rawInstance.videos_id}&time=${twitchOffset}`,
+          thumbnail: rawInstance.videos_thumbnailUrl
+            .replace('%{width}', '960')
+            .replace('%{height}', '540'),
+          title: rawInstance.videos_title,
+          offset: twitchOffset,
+        };
+        encounteredVideo = video;
       }
-      if (instance.videos.length) {
-        instances.push(instance);
+      if (rawInstance.mixerAccount_username) {
+        const entryLink = {
+          ...linkInfo,
+          linkName: rawInstance.mixerAccount_username,
+          linkId: rawInstance.accountLinks_id,
+        };
+        const videoStartTime = new Date(
+          JSON.parse(rawInstance.recordings_durationRange)[0],
+        );
+        let offset = 0;
+        if (entryStartTime > videoStartTime) {
+          offset = Math.floor(
+            (entryStartTime.getTime() - videoStartTime.getTime()) / 1000,
+          );
+        }
+        const mixerOffset = convertSecondsToTwitchDuration(offset);
+        const video = {
+          ...entryLink,
+          url: `https://mixer.com/${rawInstance.channel_token}?vod=${rawInstance.recordings_id}&t=${mixerOffset}`,
+          thumbnail: rawInstance.recordings_thumbnail,
+          title: rawInstance.recordings_title,
+          embedUrl: `//mixer.com/embed/player/${rawInstance.channel_token}?vod=${rawInstance.recordings_id}&t=${mixerOffset}`,
+          offset: mixerOffset,
+        };
+        encounteredVideo = video;
       }
+      instance.videos.push(encounteredVideo);
     }
     return instances;
   }
