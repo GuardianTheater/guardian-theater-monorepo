@@ -30,7 +30,7 @@ export class AppController {
   }
 
   @Get('streamervsstreamer')
-  @CacheTTL(300)
+  @CacheTTL(1800)
   async getStreamerVsStreamer() {
     return this.appService.getStreamerVsStreamerInstances();
   }
