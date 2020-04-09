@@ -2,8 +2,52 @@
 services:
   - docker
 
+stages:
+  - common
+  - images
+  - deploy
+
 jobs:
   include:
-    - stage: "Build"
-      name: "Build"
-      script: make
+    - stage: common
+      name: Build common
+      script: make common
+    - stage: images
+      name: Build activity-harvester
+      script: make image activity-harvester
+      isolated: true
+    - stage: images
+      name: Build destiny-to-bungie-profile-linker
+      script: make image destiny-to-bungie-profile-linker
+      isolated: true
+    - stage: images
+      name: Build guardian-theater
+      script: make image guardian-theater
+      isolated: true
+    - stage: images
+      name: Build mixer-name-matcher
+      script: make image mixer-name-matcher
+      isolated: true
+    - stage: images
+      name: Build mixer-recording-fetcher
+      script: make image mixer-recording-fetcher
+      isolated: true
+    - stage: images
+      name: Build twitch-name-matcher
+      script: make image twitch-name-matcher
+      isolated: true
+    - stage: images
+      name: Build twitch-vod-fetcher
+      script: make image twitch-vod-fetcher
+      isolated: true
+    - stage: images
+      name: Build xbox-account-matcher
+      script: make image xbox-account-matcher
+      isolated: true
+    - stage: images
+      name: Build xbox-clip-fetcher
+      script: make image xbox-clip-fetcher
+      isolated: true
+    - stage: deploy
+      name: Deploy
+      script: make deploy
