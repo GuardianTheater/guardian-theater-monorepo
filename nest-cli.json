@@ -106,6 +106,15 @@
       "compilerOptions": {
         "tsConfigPath": "apps/xbox-account-matcher/tsconfig.app.json"
       }
+    },
+    "activity-pruner": {
+      "type": "application",
+      "root": "apps/activity-pruner",
+      "entryFile": "main",
+      "sourceRoot": "apps/activity-pruner/src",
+      "compilerOptions": {
+        "tsConfigPath": "apps/activity-pruner/tsconfig.app.json"
+      }
     }
   }
 }
