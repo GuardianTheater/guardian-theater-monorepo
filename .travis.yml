@@ -17,6 +17,10 @@ jobs:
       script: make image activity-harvester
       isolated: true
     - stage: images
+      name: Build activity-pruner
+      script: make image activity-pruner
+      isolated: true
+    - stage: images
       name: Build destiny-to-bungie-profile-linker
       script: make image destiny-to-bungie-profile-linker
       isolated: true
