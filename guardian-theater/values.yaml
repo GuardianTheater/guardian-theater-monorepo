@@ -7,6 +7,7 @@ replicaCount: 1
 services:
   support:
     - activity-harvester
+    - activity-pruner
     - destiny-to-bungie-profile-linker
     - mixer-name-matcher
     - mixer-recording-fetcher
