@@ -26,6 +26,10 @@ If release name contains chart name it will be used as a full name.
 {{- printf "activity-harvester" -}}
 {{- end -}}
 
+{{- define "guardian-theater.activity-pruner.fullname" -}}
+{{- printf "activity-pruner" -}}
+{{- end -}}
+
 {{- define "guardian-theater.xbox-account-matcher.fullname" -}}
 {{- printf "xbox-account-matcher" -}}
 {{- end -}}
@@ -88,6 +92,18 @@ Common labels - activity-harvester
 {{- define "guardian-theater.activity-harvester.labels" -}}
 helm.sh/chart: {{ include "guardian-theater.chart" . }}
 {{ include "guardian-theater.activity-harvester.selectorLabels" . }}
+{{- if .Chart.AppVersion }}
+app.kubernetes.io/version: {{ .Chart.AppVersion | quote }}
+{{- end }}
+app.kubernetes.io/managed-by: {{ .Release.Service }}
+{{- end -}}
+
+{{/*
+Common labels - activity-pruner
+*/}}
+{{- define "guardian-theater.activity-pruner.labels" -}}
+helm.sh/chart: {{ include "guardian-theater.chart" . }}
+{{ include "guardian-theater.activity-pruner.selectorLabels" . }}
 {{- if .Chart.AppVersion }}
 app.kubernetes.io/version: {{ .Chart.AppVersion | quote }}
 {{- end }}
@@ -198,6 +214,15 @@ Selector labels - activity-harvester
 {{- define "guardian-theater.activity-harvester.selectorLabels" -}}
 app.kubernetes.io/name: activity-harvester
 app.kubernetes.io/instance: activity-harvester
+app.kubernetes.io/app: guardian-theater
+{{- end -}}
+
+{{/*
+Selector labels - activity-pruner
+*/}}
+{{- define "guardian-theater.activity-pruner.selectorLabels" -}}
+app.kubernetes.io/name: activity-pruner
+app.kubernetes.io/instance: activity-pruner
 app.kubernetes.io/app: guardian-theater
 {{- end -}}
 
