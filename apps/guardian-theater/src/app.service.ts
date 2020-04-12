@@ -967,6 +967,14 @@ export class AppService {
     return votes;
   }
 
+  async getReportedLinks() {
+    const links = await getConnection()
+      .createQueryBuilder(AccountLinkVoteEntity, 'votes')
+      .leftJoinAndSelect('votes.link', 'link')
+      .getMany();
+    return links;
+  }
+
   async reportLink(linkId: string, membershipId: string) {
     const bnetProfile = await getConnection()
       .createQueryBuilder(BungieProfileEntity, 'profile')
