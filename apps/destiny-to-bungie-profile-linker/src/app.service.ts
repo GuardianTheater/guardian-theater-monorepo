@@ -24,9 +24,7 @@ export class AppService {
 
   @Interval(60000)
   handleInterval() {
-    this.linkBungieAccounts().catch(() =>
-      this.logger.error(`Error running linkBungieAccounts`),
-    );
+    this.linkBungieAccounts();
   }
 
   async linkBungieAccounts() {
@@ -38,11 +36,7 @@ export class AppService {
       .leftJoinAndSelect('accountLinks.twitchAccount', 'twitchAccount')
       .orderBy('profile.bnetProfileChecked', 'ASC', 'NULLS FIRST')
       .take(100)
-      .getMany()
-      .catch(() => {
-        this.logger.error(`Error fetching Destiny Profiles from database.`);
-        return [] as DestinyProfileEntity[];
-      });
+      .getMany();
 
     const requests = [];
     const destinyProfiles: DestinyProfileEntity[] = [];
@@ -114,11 +108,7 @@ export class AppService {
             .where('bnetProfile.membershipId = :membershipId', {
               membershipId: linkedProfiles.Response.bnetMembership.membershipId,
             })
-            .getOne()
-            .catch(() => {
-              this.logger.error(`Error fetching Bungie Profile from database`);
-              return {} as BungieProfileEntity;
-            });
+            .getOne();
 
           const existingLinks = [];
 
@@ -196,17 +186,15 @@ export class AppService {
     );
 
     if (uniqueBungieProfiles.length) {
-      await upsert(BungieProfileEntity, uniqueBungieProfiles, 'membershipId')
-        .catch(() =>
-          this.logger.error(
-            `Error saving ${uniqueBungieProfiles.length} Bungie Profiles.`,
-          ),
-        )
-        .finally(() =>
-          this.logger.log(
-            `Saved ${uniqueBungieProfiles.length} Bungie Profiles.`,
-          ),
-        );
+      await upsert(
+        BungieProfileEntity,
+        uniqueBungieProfiles,
+        'membershipId',
+      ).finally(() =>
+        this.logger.log(
+          `Saved ${uniqueBungieProfiles.length} Bungie Profiles.`,
+        ),
+      );
     }
 
     const uniqueDestinyProfiles = uniqueEntityArray(
@@ -215,31 +203,23 @@ export class AppService {
     );
 
     if (uniqueDestinyProfiles.length) {
-      await upsert(DestinyProfileEntity, uniqueDestinyProfiles, 'membershipId')
-        .catch(() =>
-          this.logger.error(
-            `Error saving ${uniqueDestinyProfiles.length} Destiny Profiles.`,
-          ),
-        )
-        .finally(() =>
-          this.logger.log(
-            `Saved ${uniqueDestinyProfiles.length} Destiny Profiles.`,
-          ),
-        );
+      await upsert(
+        DestinyProfileEntity,
+        uniqueDestinyProfiles,
+        'membershipId',
+      ).finally(() =>
+        this.logger.log(
+          `Saved ${uniqueDestinyProfiles.length} Destiny Profiles.`,
+        ),
+      );
     }
 
     const uniqueAccountLinks = uniqueEntityArray(accountLinks, 'id');
 
     if (uniqueAccountLinks.length) {
-      await upsert(AccountLinkEntity, uniqueAccountLinks, 'id')
-        .catch(() =>
-          this.logger.error(
-            `Error saving ${uniqueAccountLinks.length} Account Links.`,
-          ),
-        )
-        .finally(() =>
-          this.logger.log(`Saved ${uniqueAccountLinks.length} Account Links.`),
-        );
+      await upsert(AccountLinkEntity, uniqueAccountLinks, 'id').finally(() =>
+        this.logger.log(`Saved ${uniqueAccountLinks.length} Account Links.`),
+      );
     }
   }
 }

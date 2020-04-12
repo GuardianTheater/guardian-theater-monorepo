@@ -14,9 +14,7 @@ export class AppService {
 
   @Interval(10800000)
   handleInterval() {
-    this.pruneActivityHistory().catch(() =>
-      this.logger.error(`Error running pruneActivityHistory`),
-    );
+    this.pruneActivityHistory();
   }
 
   async pruneActivityHistory() {
