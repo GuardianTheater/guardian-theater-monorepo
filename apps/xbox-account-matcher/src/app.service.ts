@@ -2,7 +2,6 @@ import { Injectable, Logger } from '@nestjs/common';
 import { getConnection } from 'typeorm';
 import { DestinyProfileEntity } from '@services/shared-services/bungie/destiny-profile.entity';
 import { XboxAccountEntity } from '@services/shared-services/xbox/xbox-account.entity';
-import { Interval } from '@nestjs/schedule';
 import { XboxService } from '@services/shared-services';
 import upsert from '@services/shared-services/helpers/typeorm-upsert';
 import uniqueEntityArray from '@services/shared-services/helpers/unique-entity-array';
