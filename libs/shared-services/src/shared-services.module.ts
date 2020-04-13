@@ -50,9 +50,6 @@ import { AccountLinkVoteEntity } from './helpers/account-link-vote.entity';
         ca: process.env.DATABASE_CERT,
         rejectUnauthorized: false,
       },
-      extra: {
-        max: 3,
-      },
     }),
     TypeOrmModule.forFeature([
       XboxClipEntity,
