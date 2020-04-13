@@ -254,12 +254,15 @@ export class AppService {
     for (let i = 0; i < entries?.length; i++) {
       const entry = entries[i];
       const instance = {
-        instanceId: entry.instance.instanceId,
-        activityHash: parseInt(entry.instance.activityHash, 10),
-        directorActivityHash: parseInt(entry.instance.directorActivityHash, 10),
-        membershipType: entry.instance.membershipType,
-        period: entry.instance.period,
-        team: entry.team,
+        instanceId: entry?.instance?.instanceId,
+        activityHash: parseInt(entry?.instance?.activityHash, 10),
+        directorActivityHash: parseInt(
+          entry?.instance?.directorActivityHash,
+          10,
+        ),
+        membershipType: entry?.instance?.membershipType,
+        period: entry?.instance?.period,
+        team: entry?.team,
         videos: [],
       };
       const encounteredVideos: {
@@ -501,11 +504,11 @@ export class AppService {
 
     if (rawInstance.instanceId) {
       const instance = {
-        instanceId: rawInstance.instanceId,
-        activityHash: parseInt(rawInstance.activityHash, 10),
-        directorActivityHash: parseInt(rawInstance.directorActivityHash, 10),
-        membershipType: rawInstance.membershipType,
-        period: rawInstance.period,
+        instanceId: rawInstance?.instanceId,
+        activityHash: parseInt(rawInstance?.activityHash, 10),
+        directorActivityHash: parseInt(rawInstance?.directorActivityHash, 10),
+        membershipType: rawInstance?.membershipType,
+        period: rawInstance?.period,
         videos: [],
       };
       const encounteredVideos: {
@@ -709,7 +712,7 @@ export class AppService {
       .where('link.destinyProfile = ANY (:membershipIds)', {
         membershipIds,
       })
-      .andWhere('link.rejected is null OR link.rejected != true')
+      .andWhere('(link.rejected is null OR link.rejected != true)')
       .getMany()
       .catch(e => {
         this.logger.log(e);
