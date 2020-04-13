@@ -15,7 +15,12 @@ export class FirestoreService {
   }
 
   async updateDestinyProfiles(destinyProfiles: DestinyProfile[]) {
-    const batch = this.db.batch();
+    const batches = [
+      {
+        count: 0,
+        batch: this.db.batch(),
+      },
+    ];
     for (let i = 0; i < destinyProfiles.length; i++) {
       const destinyProfile = destinyProfiles[i];
       const {
@@ -46,14 +51,117 @@ export class FirestoreService {
           }
           update = { ...update, timestamps };
         }
-        batch.set(
+        let batch = batches[batches.length - 1];
+        if (batch.count > 499) {
+          batch = {
+            count: 0,
+            batch: this.db.batch(),
+          };
+          batches.push(batch);
+        }
+        batch.count++;
+        batch.batch.set(
           this.db.collection('destinyProfiles').doc(membershipId),
           update,
           { merge: true },
         );
       }
     }
-    batch.commit();
+    for (let i = 0; i < batches.length; i++) {
+      batches[i].batch.commit();
+    }
+  }
+
+  async updateInstances(instances: Instance[]) {
+    const batches = [
+      {
+        count: 0,
+        batch: this.db.batch(),
+      },
+    ];
+    for (let i = 0; i < instances.length; i++) {
+      const instance = instances[i];
+      const {
+        instanceId,
+        membershipType,
+        period,
+        activityHash,
+        directorActivityHash,
+        entries,
+      } = instance;
+      if (instanceId) {
+        let update: Instance = { instanceId };
+        if (membershipType) {
+          update = { ...update, membershipType };
+        }
+        if (period) {
+          update = { ...update, period };
+        }
+        if (activityHash) {
+          update = { ...update, activityHash };
+        }
+        if (directorActivityHash) {
+          update = { ...update, directorActivityHash };
+        }
+        let batch = batches[batches.length - 1];
+        if (batch.count > 499) {
+          batch = {
+            count: 0,
+            batch: this.db.batch(),
+          };
+          batches.push(batch);
+        }
+        batch.count++;
+        batch.batch.set(
+          this.db.collection('instances').doc(instanceId),
+          update,
+          {
+            merge: true,
+          },
+        );
+        for (let j = 0; j < entries?.length; j++) {
+          const { membershipId, timeStart, timeStop, team } = entries[j];
+          if (membershipId) {
+            let entryUpdate: Entry = {
+              instanceId,
+              membershipId,
+              profile: this.db.collection('destinyProfiles').doc(membershipId),
+            };
+            if (timeStart) {
+              entryUpdate = { ...entryUpdate, timeStart };
+            }
+            if (timeStop) {
+              entryUpdate = { ...entryUpdate, timeStop };
+            }
+            if (team) {
+              entryUpdate = { ...entryUpdate, team };
+            }
+
+            let subBatch = batches[batches.length - 1];
+            if (subBatch.count > 499) {
+              subBatch = {
+                count: 0,
+                batch: this.db.batch(),
+              };
+              batches.push(subBatch);
+            }
+            subBatch.count++;
+            subBatch.batch.set(
+              this.db
+                .collection('instances')
+                .doc(instanceId)
+                .collection('entries')
+                .doc(membershipId),
+              entryUpdate,
+              { merge: true },
+            );
+          }
+        }
+      }
+    }
+    for (let i = 0; i < batches.length; i++) {
+      batches[i].batch.commit();
+    }
   }
 
   async getDestinyProfile(membershipId: string) {
@@ -75,8 +183,21 @@ export class FirestoreService {
   async getDestinyProfilesToHarvest() {
     const res = await this.db
       .collection('destinyProfiles')
+      .where(
+        'timestamps.activitiesLastChecked',
+        '<',
+        new Date(new Date().setHours(new Date().getHours() - 1)),
+      )
       .orderBy('timestamps.activitiesLastChecked', 'asc')
-      .limit(100)
+      .limit(10)
+      .get();
+    return res.docs.map(doc => doc.data());
+  }
+
+  async getEntriesByMembershipId(membershipId: string) {
+    const res = await this.db
+      .collectionGroup('entries')
+      .where('membershipId', '==', membershipId)
       .get();
     return res.docs.map(doc => doc.data());
   }
@@ -165,17 +286,19 @@ export interface XboxClip {
 }
 
 export interface Instance {
-  instanceId: string;
-  membershipType: BungieMembershipType;
-  period: Date;
-  activityHash: string;
-  directorActivityHash: string;
-  entries: Entry[];
+  instanceId?: string;
+  membershipType?: BungieMembershipType;
+  period?: Date;
+  activityHash?: string;
+  directorActivityHash?: string;
+  entries?: Entry[];
 }
 
 export interface Entry {
-  profile: string;
-  timeStart: Date;
-  timeStop: Date;
-  team: number;
+  instanceId?: string;
+  membershipId?: string;
+  profile?: FirebaseFirestore.DocumentReference<DestinyProfile>;
+  timeStart?: Date;
+  timeStop?: Date;
+  team?: number;
 }
