@@ -29,7 +29,12 @@ export class FirestoreService {
         displayName,
         bnetProfile,
         accountLinks,
-        timestamps,
+        activitiesLastChecked,
+        bnetProfileChecked,
+        mixerNameMatchChecked,
+        pageLastVisited,
+        twitchNameMatchChecked,
+        xboxNameMatchChecked,
       } = destinyProfile;
       if (membershipId) {
         let update: DestinyProfile = { membershipId };
@@ -45,12 +50,47 @@ export class FirestoreService {
         if (accountLinks && accountLinks.length) {
           update = { ...update, accountLinks };
         }
-        if (timestamps) {
-          if (timestamps.pageLastVisited && !timestamps.activitiesLastChecked) {
-            timestamps.activitiesLastChecked = new Date();
-          }
-          update = { ...update, timestamps };
+        if (activitiesLastChecked) {
+          update = { ...update, activitiesLastChecked };
         }
+        if (bnetProfileChecked) {
+          update = { ...update, bnetProfileChecked };
+        }
+        //   if (pageLastVisited && !activitiesLastChecked) {
+        //     update.activitiesLastChecked = new Date();
+        //   }
+        //   update = { ...update, timestamps };
+
+        // const profileRef = this.db
+        //   .collection('destinyProfiles')
+        //   .doc(membershipId);
+        // const existingProfileDoc = await profileRef.get();
+        // if (existingProfileDoc.exists) {
+        //   if (!bnetProfile && !timestamps && !accountLinks) {
+        //     return;
+        //   }
+        //   const existingProfile = (
+        //     await existingProfileDoc
+        //   ).data() as DestinyProfile;
+        //   if (existingProfile.timestamps) {
+        //     if (!timestamps) {
+        //       update = { ...update, timestamps: existingProfile.timestamps };
+        //     }
+        //     if (
+        //       !timestamps.activitiesLastChecked &&
+        //       existingProfile.timestamps.activitiesLastChecked
+        //     ) {
+        //       update.timestamps.activitiesLastChecked =
+        //         existingProfile.timestamps.activitiesLastChecked;
+        //     }
+        //   }
+        // } else {
+        // }
+        // update.timestamps.bnetProfileChecked = new Date();
+        // update.timestamps.mixerNameMatchChecked = new Date();
+        // update.timestamps.twitchNameMatchChecked = new Date();
+        // update.timestamps.xboxNameMatchChecked = new Date();
+
         let batch = batches[batches.length - 1];
         if (batch.count > 499) {
           batch = {
@@ -180,20 +220,6 @@ export class FirestoreService {
     return res.docs.map(doc => doc.data());
   }
 
-  async getDestinyProfilesToHarvest() {
-    const res = await this.db
-      .collection('destinyProfiles')
-      .where(
-        'timestamps.activitiesLastChecked',
-        '<',
-        new Date(new Date().setHours(new Date().getHours() - 1)),
-      )
-      .orderBy('timestamps.activitiesLastChecked', 'asc')
-      .limit(10)
-      .get();
-    return res.docs.map(doc => doc.data());
-  }
-
   async getEntriesByMembershipId(membershipId: string) {
     const res = await this.db
       .collectionGroup('entries')
@@ -216,14 +242,12 @@ export interface DestinyProfile {
     membershipType?: BungieMembershipType;
   };
   accountLinks?: AccountLink[];
-  timestamps?: {
-    pageLastVisited?: Date;
-    bnetProfileChecked?: Date;
-    activitiesLastChecked?: Date;
-    xboxNameMatchChecked?: Date;
-    twitchNameMatchChecked?: Date;
-    mixerNameMatchChecked?: Date;
-  };
+  pageLastVisited?: Date;
+  bnetProfileChecked?: Date;
+  activitiesLastChecked?: Date;
+  xboxNameMatchChecked?: Date;
+  twitchNameMatchChecked?: Date;
+  mixerNameMatchChecked?: Date;
 }
 
 export interface AccountLink {

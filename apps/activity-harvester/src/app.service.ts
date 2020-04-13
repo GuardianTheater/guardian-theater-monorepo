@@ -41,7 +41,19 @@ export class AppService {
       new Date().setDate(new Date().getDate() - this.daysOfHistory),
     );
 
-    const profilesToHarvest = (await this.firestoreService.getDestinyProfilesToHarvest()) as DestinyProfile[];
+    const profilesToHarvestRes = await this.firestoreService.db
+      .collection('destinyProfiles')
+      .where(
+        'timestamps.activitiesLastChecked',
+        '<',
+        new Date(new Date().setHours(new Date().getHours() - 1)),
+      )
+      .orderBy('timestamps.activitiesLastChecked', 'asc')
+      .limit(100)
+      .get();
+    const profilesToHarvest = profilesToHarvestRes.docs.map(doc =>
+      doc.data(),
+    ) as DestinyProfile[];
 
     const activities: DestinyHistoricalStatsPeriodGroup[] = [];
     const instances: Instance[] = [];
@@ -53,9 +65,7 @@ export class AppService {
         membershipId: profile?.membershipId,
         membershipType: profile?.membershipType,
         displayName: profile?.displayName,
-        timestamps: {
-          activitiesLastChecked: new Date(),
-        },
+        activitiesLastChecked: new Date(),
       });
 
       this.logger.log(`Harvesting activites for ${profile?.displayName}`);
