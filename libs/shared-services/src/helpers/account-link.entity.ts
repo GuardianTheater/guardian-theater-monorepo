@@ -15,6 +15,7 @@ import { AccountLinkVoteEntity } from './account-link-vote.entity';
 import { XboxAccountEntity } from '../xbox/xbox-account.entity';
 
 @Entity()
+@Index(['destinyProfile', 'rejected'])
 export class AccountLinkEntity {
   @PrimaryColumn()
   id: string;
