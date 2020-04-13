@@ -31,7 +31,7 @@ export class AppService {
     const loadedProfiles = await getConnection()
       .createQueryBuilder(DestinyProfileEntity, 'profile')
       .orderBy('profile.mixerNameMatchChecked', 'ASC', 'NULLS FIRST')
-      .take(200)
+      .limit(200)
       .getMany()
       .catch(() => {
         this.logger.error(`Error fetching Destiny Profiles from database.`);

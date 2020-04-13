@@ -51,7 +51,7 @@ export class AccountLinkEntity {
   twitchAccount?: TwitchAccountEntity;
 
   @RelationId((link: AccountLinkEntity) => link.mixerAccount)
-  mixerAccountId: string;
+  mixerAccountId: number;
 
   @ManyToOne(() => MixerAccountEntity, {
     nullable: true,

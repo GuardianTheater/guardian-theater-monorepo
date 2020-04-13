@@ -34,7 +34,7 @@ export class AppService {
     const accountsToCheck = await getConnection()
       .createQueryBuilder(TwitchAccountEntity, 'account')
       .orderBy('account.lastRecordingCheck', 'ASC', 'NULLS FIRST')
-      .take(500)
+      .limit(500)
       .getMany()
       .catch(() => {
         this.logger.error(`Error retrieving Twitch Accounts from database`);

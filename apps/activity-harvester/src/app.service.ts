@@ -43,7 +43,7 @@ export class AppService {
         },
       )
       .orderBy('profile.activitiesLastChecked', 'ASC', 'NULLS FIRST')
-      .take(5)
+      .limit(100)
       .getMany()
       .catch(() => {
         this.logger.error(`Error fetching Destiny Profiles from database`);

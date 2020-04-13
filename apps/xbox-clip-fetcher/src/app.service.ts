@@ -27,7 +27,7 @@ export class AppService {
     const accountsToCheck = await getConnection()
       .createQueryBuilder(XboxAccountEntity, 'xboxAccount')
       .orderBy('xboxAccount.lastClipCheck', 'ASC', 'NULLS FIRST')
-      .take(15)
+      .limit(15)
       .getMany()
       .catch(() => {
         this.logger.error(`Error fetching Xbox Accounts from database`);

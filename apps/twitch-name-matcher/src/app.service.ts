@@ -33,7 +33,7 @@ export class AppService {
     const loadedProfiles = await getConnection()
       .createQueryBuilder(DestinyProfileEntity, 'profile')
       .orderBy('profile.twitchNameMatchChecked', 'ASC', 'NULLS FIRST')
-      .take(1000)
+      .limit(1000)
       .getMany()
       .catch(() => {
         this.logger.error(`Error retrieving Destiny Profiles from database`);
