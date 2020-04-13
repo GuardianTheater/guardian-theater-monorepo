@@ -24,19 +24,19 @@ export class AppController {
   ) {}
 
   @Get('data/:membershipId')
-  @CacheTTL(30)
+  @CacheTTL(3600)
   async getStoredData(@Param('membershipId') membershipId: string) {
     return this.appService.getInfoAboutMembershipId(membershipId);
   }
 
   @Get('streamervsstreamer')
-  @CacheTTL(1800)
+  @CacheTTL(3600)
   async getStreamerVsStreamer() {
     return this.appService.getStreamerVsStreamerInstances();
   }
 
   @Get('encounteredClips/:membershipType/:membershipId')
-  @CacheTTL(300)
+  @CacheTTL(3600)
   async getAllEncounteredVideos(
     @Param('membershipType') membershipType: BungieMembershipType,
     @Param('membershipId') membershipId: string,
@@ -55,7 +55,7 @@ export class AppController {
   }
 
   @Get('instance/:instanceId')
-  @CacheTTL(300)
+  @CacheTTL(3600)
   async getClipsForActivity(@Param('instanceId') instanceId: string) {
     return this.appService.getVideosForInstance(instanceId);
   }
