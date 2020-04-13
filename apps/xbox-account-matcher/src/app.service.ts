@@ -18,27 +18,15 @@ export class AppService {
   ) {
     this.logger.setContext('XboxAccountMatcher');
   }
-
-  @Interval(60000)
-  handleInterval() {
-    this.matchXboxAccounts().catch(() =>
-      this.logger.error(`Error running matchXboxAccounts`),
-    );
-  }
-
   async matchXboxAccounts() {
+    this.logger.log('Loading Destiny Profiles...');
     const loadedProfiles = await getConnection()
       .createQueryBuilder(DestinyProfileEntity, 'profile')
-      .leftJoinAndSelect('profile.accountLinks', 'accountLinks')
-      .leftJoinAndSelect('accountLinks.xboxAccount', 'xboxAccount')
       .where('profile.membershipType = 1')
       .orderBy('profile.xboxNameMatchChecked', 'ASC', 'NULLS FIRST')
-      .limit(1000)
-      .getMany()
-      .catch(() => {
-        this.logger.error(`Error retrieving Destiny Profiles from database`);
-        return [] as DestinyProfileEntity[];
-      });
+      .limit(100)
+      .getMany();
+    this.logger.log('Loaded Destiny Profiles.');
 
     const destinyProfileEntities: DestinyProfileEntity[] = [];
     const xboxAccountEntities: XboxAccountEntity[] = [];

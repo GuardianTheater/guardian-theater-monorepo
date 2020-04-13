@@ -217,7 +217,11 @@ export class AppService {
 
     if (uniqueAccountLinks.length) {
       await upsert(AccountLinkEntity, uniqueAccountLinks, 'id')
-        .catch(e => this.logger.error(e))
+        .catch(() =>
+          this.logger.error(
+            `Error saving ${uniqueAccountLinks.length} Account Links.`,
+          ),
+        )
         .finally(() =>
           this.logger.log(`Saved ${uniqueAccountLinks.length} Account Links.`),
         );
