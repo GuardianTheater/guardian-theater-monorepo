@@ -9,9 +9,11 @@ import {
 import { BungieService } from '@services/shared-services';
 import { BungieProfileEntity } from '@services/shared-services/bungie/bungie-profile.entity';
 import upsert from '@services/shared-services/helpers/typeorm-upsert';
-import { Interval } from '@nestjs/schedule';
 import uniqueEntityArray from '@services/shared-services/helpers/unique-entity-array';
 import { AccountLinkEntity } from '@services/shared-services/helpers/account-link.entity';
+import { MixerAccountEntity } from '@services/shared-services/mixer/mixer-account.entity';
+import { TwitchAccountEntity } from '@services/shared-services/twitch/twitch-account.entity';
+import { XboxAccountEntity } from '@services/shared-services/xbox/xbox-account.entity';
 
 @Injectable()
 export class AppService {
@@ -22,27 +24,15 @@ export class AppService {
     this.logger.setContext('DestinyToBungieProfileLinker');
   }
 
-  @Interval(60000)
-  handleInterval() {
-    this.linkBungieAccounts().catch(() =>
-      this.logger.error(`Error running linkBungieAccounts`),
-    );
-  }
-
   async linkBungieAccounts() {
+    this.logger.log(`Loading profiles to check...`);
     const profilesToCheck = await getConnection()
       .createQueryBuilder(DestinyProfileEntity, 'profile')
       .leftJoinAndSelect('profile.accountLinks', 'accountLinks')
-      .leftJoinAndSelect('accountLinks.mixerAccount', 'mixerAccount')
-      .leftJoinAndSelect('accountLinks.xboxAccount', 'xboxAccount')
-      .leftJoinAndSelect('accountLinks.twitchAccount', 'twitchAccount')
       .orderBy('profile.bnetProfileChecked', 'ASC', 'NULLS FIRST')
-      .take(100)
-      .getMany()
-      .catch(() => {
-        this.logger.error(`Error fetching Destiny Profiles from database.`);
-        return [] as DestinyProfileEntity[];
-      });
+      .limit(100)
+      .getMany();
+    this.logger.log(`Profiles loaded.`);
 
     const requests = [];
     const destinyProfiles: DestinyProfileEntity[] = [];
@@ -65,10 +55,6 @@ export class AppService {
             getAllMemberships: true,
           },
         ).catch(() => {
-          // profile.bnetProfileChecked = new Date().toISOString();
-          // profile.bnetProfileCheckError = true;
-          // destinyProfiles.push(profile);
-
           this.logger.error(
             `Error fetching linked profiles for ${profile.membershipType}-${profile.membershipId}`,
           );
@@ -76,7 +62,6 @@ export class AppService {
           return {} as ServerResponse<DestinyLinkedProfilesResponse>;
         });
         profile.bnetProfileChecked = new Date().toISOString();
-        // profile.bnetProfileCheckError = false;
 
         if (linkedProfiles.Response?.bnetMembership) {
           const bnetProfile = new BungieProfileEntity();
@@ -108,9 +93,6 @@ export class AppService {
             .createQueryBuilder(BungieProfileEntity, 'bnetProfile')
             .leftJoinAndSelect('bnetProfile.profiles', 'profiles')
             .leftJoinAndSelect('profiles.accountLinks', 'accountLinks')
-            .leftJoinAndSelect('accountLinks.mixerAccount', 'mixerAccount')
-            .leftJoinAndSelect('accountLinks.xboxAccount', 'xboxAccount')
-            .leftJoinAndSelect('accountLinks.twitchAccount', 'twitchAccount')
             .where('bnetProfile.membershipId = :membershipId', {
               membershipId: linkedProfiles.Response.bnetMembership.membershipId,
             })
@@ -120,7 +102,7 @@ export class AppService {
               return {} as BungieProfileEntity;
             });
 
-          const existingLinks = [];
+          const existingLinks: AccountLinkEntity[] = [];
 
           for (let j = 0; j < loadedProfile.accountLinks?.length; j++) {
             const existingLink = loadedProfile.accountLinks[j];
@@ -144,28 +126,31 @@ export class AppService {
               accountLink.destinyProfile = destinyProfile;
               accountLink.linkType = existingLink.linkType;
               if (accountLink.accountType === 'mixer') {
-                accountLink.mixerAccount = existingLink.mixerAccount;
+                accountLink.mixerAccount = new MixerAccountEntity();
+                accountLink.mixerAccount.id = existingLink.mixerAccountId;
                 accountLink.id =
                   accountLink.destinyProfile.membershipId +
                   accountLink.accountType +
                   accountLink.linkType +
-                  accountLink.mixerAccount.id;
+                  existingLink.mixerAccountId;
               }
               if (accountLink.accountType === 'twitch') {
-                accountLink.twitchAccount = existingLink.twitchAccount;
+                accountLink.twitchAccount = new TwitchAccountEntity();
+                accountLink.twitchAccount.id = existingLink.twitchAccountId;
                 accountLink.id =
                   accountLink.destinyProfile.membershipId +
                   accountLink.accountType +
                   accountLink.linkType +
-                  accountLink.twitchAccount.id;
+                  existingLink.twitchAccountId;
               }
               if (accountLink.accountType === 'xbox') {
-                accountLink.xboxAccount = existingLink.xboxAccount;
+                accountLink.xboxAccount = new XboxAccountEntity();
+                accountLink.xboxAccount.gamertag = existingLink.xboxAccountId;
                 accountLink.id =
                   accountLink.destinyProfile.membershipId +
                   accountLink.accountType +
                   accountLink.linkType +
-                  accountLink.xboxAccount.gamertag;
+                  existingLink.xboxAccountId;
               }
               accountLinks.push(accountLink);
             }
@@ -232,11 +217,7 @@ export class AppService {
 
     if (uniqueAccountLinks.length) {
       await upsert(AccountLinkEntity, uniqueAccountLinks, 'id')
-        .catch(() =>
-          this.logger.error(
-            `Error saving ${uniqueAccountLinks.length} Account Links.`,
-          ),
-        )
+        .catch(e => this.logger.error(e))
         .finally(() =>
           this.logger.log(`Saved ${uniqueAccountLinks.length} Account Links.`),
         );

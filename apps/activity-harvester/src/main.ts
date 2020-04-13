@@ -7,11 +7,7 @@ async function bootstrap() {
   // eslint-disable-next-line @typescript-eslint/no-unused-vars
   const appService = app.get(AppService);
   while (true) {
-    await appService
-      .startHarvestQueue()
-      .catch(() =>
-        appService.logger.error(`Error running harvestActivityHistory`),
-      );
+    await appService.startHarvestQueue();
   }
 }
 bootstrap();

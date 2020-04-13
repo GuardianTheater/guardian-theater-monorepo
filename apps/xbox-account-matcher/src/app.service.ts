@@ -33,7 +33,7 @@ export class AppService {
       .leftJoinAndSelect('accountLinks.xboxAccount', 'xboxAccount')
       .where('profile.membershipType = 1')
       .orderBy('profile.xboxNameMatchChecked', 'ASC', 'NULLS FIRST')
-      .take(1000)
+      .limit(1000)
       .getMany()
       .catch(() => {
         this.logger.error(`Error retrieving Destiny Profiles from database`);
