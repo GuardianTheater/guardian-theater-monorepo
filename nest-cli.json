@@ -35,85 +35,22 @@
         "tsConfigPath": "libs/shared-services/tsconfig.lib.json"
       }
     },
-    "mixer-name-matcher": {
+    "account-harvester": {
       "type": "application",
-      "root": "apps/mixer-name-matcher",
+      "root": "apps/account-harvester",
       "entryFile": "main",
-      "sourceRoot": "apps/mixer-name-matcher/src",
+      "sourceRoot": "apps/account-harvester/src",
       "compilerOptions": {
-        "tsConfigPath": "apps/mixer-name-matcher/tsconfig.app.json"
+        "tsConfigPath": "apps/account-harvester/tsconfig.app.json"
       }
     },
-    "twitch-name-matcher": {
+    "video-harvester": {
       "type": "application",
-      "root": "apps/twitch-name-matcher",
+      "root": "apps/video-harvester",
       "entryFile": "main",
-      "sourceRoot": "apps/twitch-name-matcher/src",
+      "sourceRoot": "apps/video-harvester/src",
       "compilerOptions": {
-        "tsConfigPath": "apps/twitch-name-matcher/tsconfig.app.json"
-      }
-    },
-    "destiny-to-bungie-profile-linker": {
-      "type": "application",
-      "root": "apps/destiny-to-bungie-profile-linker",
-      "entryFile": "main",
-      "sourceRoot": "apps/destiny-to-bungie-profile-linker/src",
-      "compilerOptions": {
-        "tsConfigPath": "apps/destiny-to-bungie-profile-linker/tsconfig.app.json"
-      }
-    },
-    "xbox-clip-fetcher": {
-      "type": "application",
-      "root": "apps/xbox-clip-fetcher",
-      "entryFile": "main",
-      "sourceRoot": "apps/xbox-clip-fetcher/src",
-      "compilerOptions": {
-        "tsConfigPath": "apps/xbox-clip-fetcher/tsconfig.app.json"
-      }
-    },
-    "mixer-recording-fetcher": {
-      "type": "application",
-      "root": "apps/mixer-recording-fetcher",
-      "entryFile": "main",
-      "sourceRoot": "apps/mixer-recording-fetcher/src",
-      "compilerOptions": {
-        "tsConfigPath": "apps/mixer-recording-fetcher/tsconfig.app.json"
-      }
-    },
-    "bungie-partnership-twitch-matcher": {
-      "type": "application",
-      "root": "apps/bungie-partnership-twitch-matcher",
-      "entryFile": "main",
-      "sourceRoot": "apps/bungie-partnership-twitch-matcher/src",
-      "compilerOptions": {
-        "tsConfigPath": "apps/bungie-partnership-twitch-matcher/tsconfig.app.json"
-      }
-    },
-    "twitch-vod-fetcher": {
-      "type": "application",
-      "root": "apps/twitch-vod-fetcher",
-      "entryFile": "main",
-      "sourceRoot": "apps/twitch-vod-fetcher/src",
-      "compilerOptions": {
-        "tsConfigPath": "apps/twitch-vod-fetcher/tsconfig.app.json"
-      }
-    },
-    "xbox-account-matcher": {
-      "type": "application",
-      "root": "apps/xbox-account-matcher",
-      "entryFile": "main",
-      "sourceRoot": "apps/xbox-account-matcher/src",
-      "compilerOptions": {
-        "tsConfigPath": "apps/xbox-account-matcher/tsconfig.app.json"
-      }
-    },
-    "activity-pruner": {
-      "type": "application",
-      "root": "apps/activity-pruner",
-      "entryFile": "main",
-      "sourceRoot": "apps/activity-pruner/src",
-      "compilerOptions": {
-        "tsConfigPath": "apps/activity-pruner/tsconfig.app.json"
+        "tsConfigPath": "apps/video-harvester/tsconfig.app.json"
       }
     }
   }
