@@ -67,13 +67,13 @@ export class AppController {
   //   return this.appService.getAllVotes(membershipId);
   // }
 
-  @Get('reportedLinks')
-  @UseGuards(JwtAuthGuard)
-  async reportedLinks(@Request() req) {
-    if (req.user.membershipId === '375129') {
-      return this.appService.getReportedLinks();
-    }
-  }
+  // @Get('reportedLinks')
+  // @UseGuards(JwtAuthGuard)
+  // async reportedLinks(@Request() req) {
+  //   if (req.user.membershipId === '375129') {
+  //     return this.appService.getReportedLinks();
+  //   }
+  // }
 
   @Post('reportLink')
   @UseGuards(JwtAuthGuard)
