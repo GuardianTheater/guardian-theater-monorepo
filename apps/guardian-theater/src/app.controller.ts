@@ -36,7 +36,7 @@ export class AppController {
   // }
 
   @Get('encounteredClips/:membershipType/:membershipId')
-  @CacheTTL(300)
+  @CacheTTL(3600)
   async getAllEncounteredVideos(
     @Param('membershipType') membershipType: BungieMembershipType,
     @Param('membershipId') membershipId: string,
@@ -55,7 +55,7 @@ export class AppController {
   }
 
   @Get('instance/:instanceId')
-  @CacheTTL(300)
+  @CacheTTL(3600)
   async getClipsForActivity(@Param('instanceId') instanceId: string) {
     return this.appService.getVideosForInstance(instanceId);
   }
@@ -66,6 +66,14 @@ export class AppController {
   //   const membershipId = req.user.membershipId;
   //   return this.appService.getAllVotes(membershipId);
   // }
+
+  @Get('reportedLinks')
+  @UseGuards(JwtAuthGuard)
+  async reportedLinks(@Request() req) {
+    if (req.user.membershipId === '375129') {
+      return this.appService.getReportedLinks();
+    }
+  }
 
   @Post('reportLink')
   @UseGuards(JwtAuthGuard)
