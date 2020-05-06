@@ -9,7 +9,9 @@ export class TwitchService {
   tokenExpiration: Date;
   daysOfHistory = parseInt(process.env.DAYS_OF_HISTORY, 10);
 
-  constructor(private readonly httpService: HttpService) {}
+  constructor(private readonly httpService: HttpService) {
+    this.authenticateTwitch();
+  }
 
   async authenticateTwitch() {
     if (this.accessToken && new Date() < this.tokenExpiration) {

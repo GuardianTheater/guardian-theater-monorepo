@@ -47,18 +47,18 @@ export class AppController {
     );
   }
 
-  // @Get('linkedAccounts')
-  // @UseGuards(JwtAuthGuard)
-  // async getLinkedAccounts(@Request() req) {
-  //   const membershipId = req.user.membershipId;
-  //   return this.appService.getAllLinkedAccounts(membershipId);
-  // }
+  @Get('linkedAccounts')
+  @UseGuards(JwtAuthGuard)
+  async getLinkedAccounts(@Request() req) {
+    const membershipId = req.user.membershipId;
+    return this.appService.getAllLinkedAccounts(membershipId);
+  }
 
-  // @Get('instance/:instanceId')
-  // @CacheTTL(300)
-  // async getClipsForActivity(@Param('instanceId') instanceId: string) {
-  //   return this.appService.getVideosForInstance(instanceId);
-  // }
+  @Get('instance/:instanceId')
+  @CacheTTL(300)
+  async getClipsForActivity(@Param('instanceId') instanceId: string) {
+    return this.appService.getVideosForInstance(instanceId);
+  }
 
   // @Get('getVotes')
   // @UseGuards(JwtAuthGuard)
@@ -67,68 +67,68 @@ export class AppController {
   //   return this.appService.getAllVotes(membershipId);
   // }
 
-  // @Post('reportLink')
-  // @UseGuards(JwtAuthGuard)
-  // async reportLink(
-  //   @Request() req,
-  //   @Body()
-  //   reportLinkDto: {
-  //     linkId: string;
-  //   },
-  // ) {
-  //   const membershipId = req.user.membershipId;
-  //   return this.appService.reportLink(reportLinkDto.linkId, membershipId);
-  // }
+  @Post('reportLink')
+  @UseGuards(JwtAuthGuard)
+  async reportLink(
+    @Request() req,
+    @Body()
+    reportLinkDto: {
+      linkId: string;
+    },
+  ) {
+    const membershipId = req.user.membershipId;
+    return this.appService.reportLink(reportLinkDto.linkId, membershipId);
+  }
 
-  // @Post('unreportLink')
-  // @UseGuards(JwtAuthGuard)
-  // async unreportLink(
-  //   @Request() req,
-  //   @Body()
-  //   unreportLinkDto: {
-  //     linkId: string;
-  //   },
-  // ) {
-  //   const membershipId = req.user.membershipId;
-  //   return this.appService.unreportLink(unreportLinkDto.linkId, membershipId);
-  // }
+  @Post('unreportLink')
+  @UseGuards(JwtAuthGuard)
+  async unreportLink(
+    @Request() req,
+    @Body()
+    unreportLinkDto: {
+      linkId: string;
+    },
+  ) {
+    const membershipId = req.user.membershipId;
+    return this.appService.unreportLink(unreportLinkDto.linkId, membershipId);
+  }
 
-  // @Post('removeLink')
-  // @UseGuards(JwtAuthGuard)
-  // async removeLink(
-  //   @Request() req,
-  //   @Body()
-  //   removeLinkDto: {
-  //     linkId: string;
-  //   },
-  // ) {
-  //   const membershipId = req.user.membershipId;
-  //   return this.appService.removeLink(removeLinkDto.linkId, membershipId);
-  // }
+  @Post('removeLink')
+  @UseGuards(JwtAuthGuard)
+  async removeLink(
+    @Request() req,
+    @Body()
+    removeLinkDto: {
+      linkId: string;
+    },
+  ) {
+    const membershipId = req.user.membershipId;
+    return this.appService.removeLink(removeLinkDto.linkId, membershipId);
+  }
 
-  // @Post('addLink')
-  // @UseGuards(JwtAuthGuard)
-  // async addLink(
-  //   @Request() req,
-  //   @Body()
-  //   addLinkDto: {
-  //     jwt: string;
-  //   },
-  // ) {
-  //   try {
-  //     const token = this.jwtService.verify(addLinkDto.jwt);
-  //     if (token.provider === 'twitch') {
-  //       const membershipId = req.user.membershipId;
-  //       const twitchId = token.userId;
+  @Post('addLink')
+  @UseGuards(JwtAuthGuard)
+  async addLink(
+    @Request() req,
+    @Body()
+    addLinkDto: {
+      jwt: string;
+    },
+  ) {
+    try {
+      const token = this.jwtService.verify(addLinkDto.jwt);
+      if (token.provider === 'twitch') {
+        const membershipId = req.user.membershipId;
+        const twitchId = token.userId;
 
-  //       const link = await this.appService.addTwitchLink(
-  //         membershipId,
-  //         twitchId,
-  //       );
-  //       return link;
-  //     }
-  //   } catch (e) {
-  //     return {};
-  //   }
-  // }
+        const link = await this.appService.addTwitchLink(
+          membershipId,
+          twitchId,
+        );
+        return link;
+      }
+    } catch (e) {
+      return {};
+    }
+  }
 }

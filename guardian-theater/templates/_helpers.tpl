@@ -26,32 +26,12 @@ If release name contains chart name it will be used as a full name.
 {{- printf "activity-harvester" -}}
 {{- end -}}
 
-{{- define "guardian-theater.xbox-account-matcher.fullname" -}}
-{{- printf "xbox-account-matcher" -}}
+{{- define "guardian-theater.activity-harvester.fullname" -}}
+{{- printf "account-harvester" -}}
 {{- end -}}
 
-{{- define "guardian-theater.destiny-to-bungie-profile-linker.fullname" -}}
-{{- printf "destiny-to-bungie-profile-linker" -}}
-{{- end -}}
-
-{{- define "guardian-theater.mixer-name-matcher.fullname" -}}
-{{- printf "mixer-name-matcher" -}}
-{{- end -}}
-
-{{- define "guardian-theater.mixer-recording-fetcher.fullname" -}}
-{{- printf "mixer-recording-fetcher" -}}
-{{- end -}}
-
-{{- define "guardian-theater.twitch-name-matcher.fullname" -}}
-{{- printf "twitch-name-matcher" -}}
-{{- end -}}
-
-{{- define "guardian-theater.twitch-vod-fetcher.fullname" -}}
-{{- printf "twitch-vod-fetcher" -}}
-{{- end -}}
-
-{{- define "guardian-theater.xbox-clip-fetcher.fullname" -}}
-{{- printf "xbox-clip-fetcher" -}}
+{{- define "guardian-theater.activity-harvester.fullname" -}}
+{{- printf "video-harvester" -}}
 {{- end -}}
 
 
@@ -95,11 +75,11 @@ app.kubernetes.io/managed-by: {{ .Release.Service }}
 {{- end -}}
 
 {{/*
-Common labels - xbox-account-matcher
+Common labels - account-harvester
 */}}
-{{- define "guardian-theater.xbox-account-matcher.labels" -}}
+{{- define "guardian-theater.account-harvester.labels" -}}
 helm.sh/chart: {{ include "guardian-theater.chart" . }}
-{{ include "guardian-theater.xbox-account-matcher.selectorLabels" . }}
+{{ include "guardian-theater.account-harvester.selectorLabels" . }}
 {{- if .Chart.AppVersion }}
 app.kubernetes.io/version: {{ .Chart.AppVersion | quote }}
 {{- end }}
@@ -107,71 +87,11 @@ app.kubernetes.io/managed-by: {{ .Release.Service }}
 {{- end -}}
 
 {{/*
-Common labels - destiny-to-bungie-profile-linker
+Common labels - video-harvester
 */}}
-{{- define "guardian-theater.destiny-to-bungie-profile-linker.labels" -}}
+{{- define "guardian-theater.video-harvester.labels" -}}
 helm.sh/chart: {{ include "guardian-theater.chart" . }}
-{{ include "guardian-theater.destiny-to-bungie-profile-linker.selectorLabels" . }}
-{{- if .Chart.AppVersion }}
-app.kubernetes.io/version: {{ .Chart.AppVersion | quote }}
-{{- end }}
-app.kubernetes.io/managed-by: {{ .Release.Service }}
-{{- end -}}
-
-{{/*
-Common labels - mixer-name-matcher
-*/}}
-{{- define "guardian-theater.mixer-name-matcher.labels" -}}
-helm.sh/chart: {{ include "guardian-theater.chart" . }}
-{{ include "guardian-theater.mixer-name-matcher.selectorLabels" . }}
-{{- if .Chart.AppVersion }}
-app.kubernetes.io/version: {{ .Chart.AppVersion | quote }}
-{{- end }}
-app.kubernetes.io/managed-by: {{ .Release.Service }}
-{{- end -}}
-
-{{/*
-Common labels - mixer-recording-fetcher
-*/}}
-{{- define "guardian-theater.mixer-recording-fetcher.labels" -}}
-helm.sh/chart: {{ include "guardian-theater.chart" . }}
-{{ include "guardian-theater.mixer-recording-fetcher.selectorLabels" . }}
-{{- if .Chart.AppVersion }}
-app.kubernetes.io/version: {{ .Chart.AppVersion | quote }}
-{{- end }}
-app.kubernetes.io/managed-by: {{ .Release.Service }}
-{{- end -}}
-
-{{/*
-Common labels - twitch-name-matcher
-*/}}
-{{- define "guardian-theater.twitch-name-matcher.labels" -}}
-helm.sh/chart: {{ include "guardian-theater.chart" . }}
-{{ include "guardian-theater.twitch-name-matcher.selectorLabels" . }}
-{{- if .Chart.AppVersion }}
-app.kubernetes.io/version: {{ .Chart.AppVersion | quote }}
-{{- end }}
-app.kubernetes.io/managed-by: {{ .Release.Service }}
-{{- end -}}
-
-{{/*
-Common labels - twitch-vod-fetcher
-*/}}
-{{- define "guardian-theater.twitch-vod-fetcher.labels" -}}
-helm.sh/chart: {{ include "guardian-theater.chart" . }}
-{{ include "guardian-theater.twitch-vod-fetcher.selectorLabels" . }}
-{{- if .Chart.AppVersion }}
-app.kubernetes.io/version: {{ .Chart.AppVersion | quote }}
-{{- end }}
-app.kubernetes.io/managed-by: {{ .Release.Service }}
-{{- end -}}
-
-{{/*
-Common labels - xbox-clip-fetcher
-*/}}
-{{- define "guardian-theater.xbox-clip-fetcher.labels" -}}
-helm.sh/chart: {{ include "guardian-theater.chart" . }}
-{{ include "guardian-theater.xbox-clip-fetcher.selectorLabels" . }}
+{{ include "guardian-theater.video-harvester.selectorLabels" . }}
 {{- if .Chart.AppVersion }}
 app.kubernetes.io/version: {{ .Chart.AppVersion | quote }}
 {{- end }}
@@ -202,65 +122,20 @@ app.kubernetes.io/app: guardian-theater
 {{- end -}}
 
 {{/*
-Selector labels - xbox-account-matcher
+Selector labels - account-harvester
 */}}
-{{- define "guardian-theater.xbox-account-matcher.selectorLabels" -}}
-app.kubernetes.io/name: xbox-account-matcher
-app.kubernetes.io/instance: xbox-account-matcher
+{{- define "guardian-theater.account-harvester.selectorLabels" -}}
+app.kubernetes.io/name: account-harvester
+app.kubernetes.io/instance: account-harvester
 app.kubernetes.io/app: guardian-theater
 {{- end -}}
 
 {{/*
-Selector labels - destiny-to-bungie-profile-linker
+Selector labels - video-harvester
 */}}
-{{- define "guardian-theater.destiny-to-bungie-profile-linker.selectorLabels" -}}
-app.kubernetes.io/name: destiny-to-bungie-profile-linker
-app.kubernetes.io/instance: destiny-to-bungie-profile-linker
-app.kubernetes.io/app: guardian-theater
-{{- end -}}
-
-{{/*
-Selector labels - mixer-name-matcher
-*/}}
-{{- define "guardian-theater.mixer-name-matcher.selectorLabels" -}}
-app.kubernetes.io/name: mixer-name-matcher
-app.kubernetes.io/instance: mixer-name-matcher
-app.kubernetes.io/app: guardian-theater
-{{- end -}}
-
-{{/*
-Selector labels - mixer-recording-fetcher
-*/}}
-{{- define "guardian-theater.mixer-recording-fetcher.selectorLabels" -}}
-app.kubernetes.io/name: mixer-recording-fetcher
-app.kubernetes.io/instance: mixer-recording-fetcher
-app.kubernetes.io/app: guardian-theater
-{{- end -}}
-
-{{/*
-Selector labels - twitch-name-matcher
-*/}}
-{{- define "guardian-theater.twitch-name-matcher.selectorLabels" -}}
-app.kubernetes.io/name: twitch-name-matcher
-app.kubernetes.io/instance: twitch-name-matcher
-app.kubernetes.io/app: guardian-theater
-{{- end -}}
-
-{{/*
-Selector labels - twitch-vod-fetcher
-*/}}
-{{- define "guardian-theater.twitch-vod-fetcher.selectorLabels" -}}
-app.kubernetes.io/name: twitch-vod-fetcher
-app.kubernetes.io/instance: twitch-vod-fetcher
-app.kubernetes.io/app: guardian-theater
-{{- end -}}
-
-{{/*
-Selector labels - xbox-clip-fetcher
-*/}}
-{{- define "guardian-theater.xbox-clip-fetcher.selectorLabels" -}}
-app.kubernetes.io/name: xbox-clip-fetcher
-app.kubernetes.io/instance: xbox-clip-fetcher
+{{- define "guardian-theater.video-harvester.selectorLabels" -}}
+app.kubernetes.io/name: video-harvester
+app.kubernetes.io/instance: video-harvester
 app.kubernetes.io/app: guardian-theater
 {{- end -}}
 

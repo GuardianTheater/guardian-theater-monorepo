@@ -7,33 +7,29 @@ replicaCount: 1
 services:
   support:
     - activity-harvester
-    - activity-pruner
-    - destiny-to-bungie-profile-linker
-    - mixer-name-matcher
-    - mixer-recording-fetcher
-    - twitch-name-matcher
-    - twitch-vod-fetcher
-    - xbox-account-matcher
-    - xbox-clip-fetcher
+    - account-harvester
+    - video-harvester
   main:
     - guardian-theater
 
 pullPolicy: IfNotPresent
 
 settings:
-  - name: DATABASE_HOST
-    value: 'value'
-  - name: DATABASE_PORT
-    value: 'value'
-  - name: DATABASE_USER
-    value: 'value'
-  - name: DATABASE_PASSWORD
-    value: 'value'
-  - name: DATABASE_NAME
-    value: 'value'
-  - name: DATABASE_CERT
-    value: 'value'
   - name: BUNGIE_API_KEY
+    value: 'value'
+  - name: BUNGIE_API_KEY_2
+    value: 'value'
+  - name: ACTIVITY_HARVESTER_BUNGIE_KEY_A
+    value: 'value'
+  - name: ACTIVITY_HARVESTER_BUNGIE_KEY_A
+    value: 'value'
+  - name: ACCOUNT_HARVESTER_BUNGIE_KEY_A
+    value: 'value'
+  - name: ACCOUNT_HARVESTER_BUNGIE_KEY_B
+    value: 'value'
+  - name: VIDEO_HARVESTER_BUNGIE_KEY_A
+    value: 'value'
+  - name: VIDEO_HARVESTER_BUNGIE_KEY_B
     value: 'value'
   - name: BUNGIE_CLIENT_ID
     value: 'value'
@@ -54,6 +50,8 @@ settings:
   - name: ORIGIN
     value: 'value'
   - name: BASE_URL
+    value: 'value'
+  - name: FIREBASE_KEY
     value: 'value'
 imagePullSecrets: []
 nameOverride: ''

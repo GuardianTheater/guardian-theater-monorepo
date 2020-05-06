@@ -1,12 +1,13 @@
 import { Injectable } from '@nestjs/common';
 import * as admin from 'firebase-admin';
 import { BungieMembershipType } from 'bungie-api-ts/user';
+import { BungieService } from '../bungie/bungie.service';
 
 @Injectable()
 export class FirestoreService {
-  serviceAccount = require('../../../../firebase-key.json');
+  serviceAccount = JSON.parse(process.env.FIREBASE_KEY);
   db: FirebaseFirestore.Firestore;
-  constructor() {
+  constructor(private bungieService: BungieService) {
     admin.initializeApp({
       credential: admin.credential.cert(this.serviceAccount),
     });
@@ -14,315 +15,185 @@ export class FirestoreService {
     this.db = admin.firestore();
   }
 
-  async updateDestinyProfiles(destinyProfiles: DestinyProfile[]) {
-    const batches = [
-      {
-        count: 0,
-        batch: this.db.batch(),
-      },
-    ];
-    for (let i = 0; i < destinyProfiles.length; i++) {
-      const destinyProfile = destinyProfiles[i];
-      const {
-        membershipId,
-        membershipType,
-        displayName,
-        bnetProfile,
-        accountLinks,
-        activitiesLastChecked,
-        bnetProfileChecked,
-        mixerNameMatchChecked,
-        pageLastVisited,
-        twitchNameMatchChecked,
-        xboxNameMatchChecked,
-      } = destinyProfile;
-      if (membershipId) {
-        let update: DestinyProfile = { membershipId };
-        if (membershipType) {
-          update = { ...update, membershipType };
+  async logProfileVisit(
+    membershipId: string,
+    membershipType: BungieMembershipType,
+  ) {
+    const profileRes = await this.bungieService.getRootProfile(
+      membershipId,
+      membershipType,
+    );
+    if (profileRes && profileRes.membershipId) {
+      let profile: Profile = {
+        membershipId: profileRes.membershipId,
+        membershipType: profileRes.membershipType,
+        displayName: profileRes.displayName,
+        lastVisit: new Date(),
+      };
+      const profileRef = this.db
+        .collection('profiles')
+        .doc(profile.membershipId);
+      const profileDoc = await profileRef.get();
+      if (profileDoc.exists) {
+        const oldProfile = profileDoc.data();
+        profile = {
+          ...profile,
+          lastAccountCheck: oldProfile.lastAccountCheck || new Date(),
+          lastInstanceCheck: oldProfile.lastInstanceCheck || new Date(),
+        };
+        if (!profile.status) {
+          profile.status = {};
         }
-        if (displayName) {
-          update = { ...update, displayName };
+        if (!profile.status.activityHarvest) {
+          profile.status.activityHarvest = 'idle';
         }
-        if (bnetProfile) {
-          update = { ...update, bnetProfile };
-        }
-        if (accountLinks && accountLinks.length) {
-          update = { ...update, accountLinks };
-        }
-        if (activitiesLastChecked) {
-          update = { ...update, activitiesLastChecked };
-        }
-        if (bnetProfileChecked) {
-          update = { ...update, bnetProfileChecked };
-        }
-        //   if (pageLastVisited && !activitiesLastChecked) {
-        //     update.activitiesLastChecked = new Date();
-        //   }
-        //   update = { ...update, timestamps };
-
-        // const profileRef = this.db
-        //   .collection('destinyProfiles')
-        //   .doc(membershipId);
-        // const existingProfileDoc = await profileRef.get();
-        // if (existingProfileDoc.exists) {
-        //   if (!bnetProfile && !timestamps && !accountLinks) {
-        //     return;
-        //   }
-        //   const existingProfile = (
-        //     await existingProfileDoc
-        //   ).data() as DestinyProfile;
-        //   if (existingProfile.timestamps) {
-        //     if (!timestamps) {
-        //       update = { ...update, timestamps: existingProfile.timestamps };
-        //     }
-        //     if (
-        //       !timestamps.activitiesLastChecked &&
-        //       existingProfile.timestamps.activitiesLastChecked
-        //     ) {
-        //       update.timestamps.activitiesLastChecked =
-        //         existingProfile.timestamps.activitiesLastChecked;
-        //     }
-        //   }
-        // } else {
-        // }
-        // update.timestamps.bnetProfileChecked = new Date();
-        // update.timestamps.mixerNameMatchChecked = new Date();
-        // update.timestamps.twitchNameMatchChecked = new Date();
-        // update.timestamps.xboxNameMatchChecked = new Date();
-
-        let batch = batches[batches.length - 1];
-        if (batch.count > 499) {
-          batch = {
-            count: 0,
-            batch: this.db.batch(),
-          };
-          batches.push(batch);
-        }
-        batch.count++;
-        batch.batch.set(
-          this.db.collection('destinyProfiles').doc(membershipId),
-          update,
-          { merge: true },
-        );
-      }
-    }
-    for (let i = 0; i < batches.length; i++) {
-      batches[i].batch.commit();
-    }
-  }
-
-  async updateInstances(instances: Instance[]) {
-    const batches = [
-      {
-        count: 0,
-        batch: this.db.batch(),
-      },
-    ];
-    for (let i = 0; i < instances.length; i++) {
-      const instance = instances[i];
-      const {
-        instanceId,
-        membershipType,
-        period,
-        activityHash,
-        directorActivityHash,
-        entries,
-      } = instance;
-      if (instanceId) {
-        let update: Instance = { instanceId };
-        if (membershipType) {
-          update = { ...update, membershipType };
-        }
-        if (period) {
-          update = { ...update, period };
-        }
-        if (activityHash) {
-          update = { ...update, activityHash };
-        }
-        if (directorActivityHash) {
-          update = { ...update, directorActivityHash };
-        }
-        let batch = batches[batches.length - 1];
-        if (batch.count > 499) {
-          batch = {
-            count: 0,
-            batch: this.db.batch(),
-          };
-          batches.push(batch);
-        }
-        batch.count++;
-        batch.batch.set(
-          this.db.collection('instances').doc(instanceId),
-          update,
-          {
-            merge: true,
+        profileRef.set(profile, { merge: true });
+      } else {
+        profile = {
+          ...profile,
+          lastAccountCheck: new Date(),
+          lastInstanceCheck: new Date(),
+          status: {
+            activityHarvest: 'idle',
+            accountHarvest: 'idle',
           },
-        );
-        for (let j = 0; j < entries?.length; j++) {
-          const { membershipId, timeStart, timeStop, team } = entries[j];
-          if (membershipId) {
-            let entryUpdate: Entry = {
-              instanceId,
-              membershipId,
-              profile: this.db.collection('destinyProfiles').doc(membershipId),
-            };
-            if (timeStart) {
-              entryUpdate = { ...entryUpdate, timeStart };
-            }
-            if (timeStop) {
-              entryUpdate = { ...entryUpdate, timeStop };
-            }
-            if (team) {
-              entryUpdate = { ...entryUpdate, team };
-            }
-
-            let subBatch = batches[batches.length - 1];
-            if (subBatch.count > 499) {
-              subBatch = {
-                count: 0,
-                batch: this.db.batch(),
-              };
-              batches.push(subBatch);
-            }
-            subBatch.count++;
-            subBatch.batch.set(
-              this.db
-                .collection('instances')
-                .doc(instanceId)
-                .collection('entries')
-                .doc(membershipId),
-              entryUpdate,
-              { merge: true },
-            );
-          }
-        }
+        };
+        profileRef.set(profile, { merge: true });
       }
     }
-    for (let i = 0; i < batches.length; i++) {
-      batches[i].batch.commit();
-    }
+    // Write to bnetProfile if it exists, else write destinyProfile
   }
 
-  async getDestinyProfile(membershipId: string) {
-    const res = await this.db
-      .collection('destinyProfiles')
-      .doc(membershipId)
+  async getEncounteredClips(membershipIds: string[]) {
+    const videosRef = this.db.collection('videos');
+    return videosRef
+      .where('membershipIds', 'array-contains-any', membershipIds)
       .get();
-    return res.data();
+    // query all Videos that contain any linked membershipIds in encounteredMembershipIds
   }
 
-  async getDestinyProfileByBnetMembershipId(membershipId: string) {
-    const res = await this.db
-      .collection('destinyProfiles')
-      .where('bnetProfile.membershipId', '==', membershipId)
+  async getInstanceClips(instanceIds: string[]) {
+    const videosRef = this.db.collection('videos');
+    return videosRef
+      .where('instanceIds', 'array-contains-any', instanceIds)
       .get();
-    return res.docs.map(doc => doc.data());
+    // query all Videos that contain instanceId in instanceIds
   }
-
-  async getEntriesByMembershipId(membershipId: string) {
-    const res = await this.db
-      .collectionGroup('entries')
-      .where('membershipId', '==', membershipId)
-      .get();
-    return res.docs.map(doc => doc.data());
-  }
-
-  //   async getInstancesForMembershipId(membershipId: string) {
-  //     const res = await this.db.collection('instances').where()
-  //   }
 }
 
-export interface DestinyProfile {
+export interface Profile {
+  membershipId: string;
+  membershipType: BungieMembershipType;
+  displayName?: string;
+
+  lastAccountCheck?: Date;
+  fresh?: boolean;
+
+  lastVisit?: Date;
+  lastInstanceCheck?: Date;
+  checkedInstances?: string[];
+
+  lastLinkedProfilesCheck?: Date;
+  linkedProfiles?: {
+    membershipId: string;
+    membershipType: BungieMembershipType;
+    displayName?: string;
+    withError?: boolean;
+
+    lastCharacterIdCheck?: Date;
+    characterIds?: string[];
+  }[];
+
+  status?: {
+    activityHarvest?: 'idle' | 'active';
+    accountHarvest?: 'idle' | 'active';
+  };
+}
+
+export interface VideoAccount {
   membershipId?: string;
   membershipType?: BungieMembershipType;
   displayName?: string;
-  bnetProfile?: {
+
+  fresh?: boolean;
+  type: 'twitch' | 'mixer' | 'xbox';
+
+  rejected?: boolean;
+  reported?: boolean;
+  reportedBy?: string[];
+
+  lastClipCheck?: Date;
+  clipCheckStatus: 'idle' | 'active';
+
+  lastLinkedProfilesCheck?: Date;
+  linkedProfiles?: {
+    membershipId: string;
+    membershipType: BungieMembershipType;
+    displayName?: string;
+    withError?: boolean;
+
+    lastCharacterIdCheck?: Date;
+    characterIds?: string[];
+  }[];
+
+  twitch?: {
+    userId: string;
+    login: string;
+    displayName: string;
+  };
+
+  mixer?: {
+    userId: number;
+    username: string;
+    channelId: number;
+    token: string;
+  };
+
+  xbox?: {
+    gamertag: string;
+    xuid?: string;
+  };
+}
+
+export interface Video {
+  owner: {
     membershipId?: string;
     membershipType?: BungieMembershipType;
+    displayName?: string;
   };
-  accountLinks?: AccountLink[];
-  pageLastVisited?: Date;
-  bnetProfileChecked?: Date;
-  activitiesLastChecked?: Date;
-  xboxNameMatchChecked?: Date;
-  twitchNameMatchChecked?: Date;
-  mixerNameMatchChecked?: Date;
-}
 
-export interface AccountLink {
-  linkType: string;
-  accountType: string;
-  account: TwitchAccount | MixerAccount | XboxAccount;
-}
+  instanceIds?: string[];
+  membershipIds?: string[];
+  teams?: {
+    [instanceId: string]: 17 | 18 | number;
+  };
 
-export interface TwitchAccount {
-  id: string;
-  login: string;
-  displayName: string;
-  lastChecked: Date;
-  videos: TwitchVideo[];
-}
+  type: 'twitch' | 'mixer' | 'xbox';
 
-export interface TwitchVideo {
-  id: string;
-  timeStart: Date;
-  timeStop: Date;
-  title: string;
-  url: string;
-  thumbnailUrl: string;
-}
+  linkName: string;
+  linkId: string;
 
-export interface MixerAccount {
-  id: number;
-  username: string;
-  channel: MixerChannel[];
-}
+  twitch?: {
+    userId?: string;
+    id?: string;
+  };
 
-export interface MixerChannel {
-  id: number;
-  token: string;
-  lastChecked: Date;
-  recordings: MixerRecording[];
-}
+  mixer?: {
+    userId?: number;
+    id?: number;
+    token?: string;
+  };
 
-export interface MixerRecording {
-  id: number;
-  timeStart: Date;
-  timeStop: Date;
-  title: string;
-  thumbnail: string;
-}
+  xbox?: {
+    gamertag?: string;
+    gameClipId?: string;
+    scid?: string;
+    xuid?: string;
+  };
 
-export interface XboxAccount {
-  gamertag: string;
-  lastChecked: Date;
-  clips: XboxClip[];
-}
-
-export interface XboxClip {
-  gameClipId: string;
-  scid: string;
-  xuid: string;
-  timeStart: Date;
-  timeStop: Date;
-  thumbnailUrl: string;
-}
-
-export interface Instance {
-  instanceId?: string;
-  membershipType?: BungieMembershipType;
-  period?: Date;
-  activityHash?: string;
-  directorActivityHash?: string;
-  entries?: Entry[];
-}
-
-export interface Entry {
-  instanceId?: string;
-  membershipId?: string;
-  profile?: FirebaseFirestore.DocumentReference<DestinyProfile>;
   timeStart?: Date;
   timeStop?: Date;
-  team?: number;
+  title?: string;
+  url?: string;
+  thumbnailUrl?: string;
 }
