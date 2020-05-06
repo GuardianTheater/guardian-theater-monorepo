@@ -17,7 +17,8 @@
       "@services/shared-services/*": [
         "libs/shared-services/src/*"
       ]
-    }
+    },
+    "resolveJsonModule": true
   },
   "exclude": [
     "node_modules",

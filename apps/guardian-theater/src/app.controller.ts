@@ -23,17 +23,17 @@ export class AppController {
     private jwtService: JwtService,
   ) {}
 
-  @Get('data/:membershipId')
-  @CacheTTL(3600)
-  async getStoredData(@Param('membershipId') membershipId: string) {
-    return this.appService.getInfoAboutMembershipId(membershipId);
-  }
+  // @Get('data/:membershipId')
+  // @CacheTTL(30)
+  // async getStoredData(@Param('membershipId') membershipId: string) {
+  //   return this.appService.getInfoAboutMembershipId(membershipId);
+  // }
 
-  @Get('streamervsstreamer')
-  @CacheTTL(3600)
-  async getStreamerVsStreamer() {
-    return this.appService.getStreamerVsStreamerInstances();
-  }
+  // @Get('streamervsstreamer')
+  // @CacheTTL(1800)
+  // async getStreamerVsStreamer() {
+  //   return this.appService.getStreamerVsStreamerInstances();
+  // }
 
   @Get('encounteredClips/:membershipType/:membershipId')
   @CacheTTL(3600)
@@ -60,12 +60,12 @@ export class AppController {
     return this.appService.getVideosForInstance(instanceId);
   }
 
-  @Get('getVotes')
-  @UseGuards(JwtAuthGuard)
-  async getVotes(@Request() req) {
-    const membershipId = req.user.membershipId;
-    return this.appService.getAllVotes(membershipId);
-  }
+  // @Get('getVotes')
+  // @UseGuards(JwtAuthGuard)
+  // async getVotes(@Request() req) {
+  //   const membershipId = req.user.membershipId;
+  //   return this.appService.getAllVotes(membershipId);
+  // }
 
   @Get('reportedLinks')
   @UseGuards(JwtAuthGuard)

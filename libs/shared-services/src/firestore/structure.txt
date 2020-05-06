@@ -1,0 +1,94 @@
+reported-links
+bnetMembershipId {
+    links: destiny-profile/account-link[]
+}
+
+destiny-profile {
+    membershipId: string
+    membershipType: number
+    displayName: string
+    bnetProfile: {
+        membershipId: string
+        membershipType: number
+    }
+    accountLinks: account-link {
+        id: string
+        destinyProfile: destiny-profile
+        linkType: string
+        accountType: string
+        rejected: boolean
+        account: twitch-account | mixer-account | xbox-account
+    }[]
+    timestamps {
+        pageLastVisited: timestamp
+        bnetProfileChecked: timestamp
+        activitiesLastChecked: timestamp
+        xboxNameMatchChecked: timestamp
+        twitchNameMatchChecked: timestamp
+        mixerNameMatchChecked: timestamp
+    }
+    instances: string[]
+}
+
+twitch-account {
+    id: string
+    login: string
+    displayName: string
+    lastChecked: timestamp
+    videos: twitch-video {
+        id: string
+        userId: string
+        timeStart: timestamp
+        timeStop: timestamp
+        title: string
+        url: string
+        thumbnailUrl: string
+    }[]
+}
+
+mixer-account {
+    id: number
+    username: string
+    channel: mixer-channel {
+        id: number
+        token: string
+        lastChecked: timestamp
+        recordings: mixer-recording {
+            id: number
+            expiresAt: timestamp
+            timeStart: timestamp
+            timeStop: timestamp
+            title: string
+            thumbnail: string
+        }[]
+    }[]
+}
+
+xbox-account {
+    gamertag: string
+    lastChecked: timestamp
+    clips: xbox-clip {
+        gamertag: string
+        gameClipId: string
+        scid: string
+        xuid: string
+        timeStart: timestamp
+        timeStop: timestamp
+        thumbnailUrl: string
+    }[]
+}
+
+instances {
+    instanceId: string
+    membershipType: number
+    period: timestamp
+    activityHash: string
+    directorActivityHash: string
+    entries: pgcr-entry {
+        instanceId: string
+        profile: destiny-profile
+        timeStart: timestamp
+        timeStop: timestamp
+        team: number
+    }[]
+}
