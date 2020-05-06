@@ -15,6 +15,7 @@ import { AccountLinkVoteEntity } from './account-link-vote.entity';
 import { XboxAccountEntity } from '../xbox/xbox-account.entity';
 
 @Entity()
+@Index(['destinyProfile', 'rejected'])
 export class AccountLinkEntity {
   @PrimaryColumn()
   id: string;
@@ -51,7 +52,7 @@ export class AccountLinkEntity {
   twitchAccount?: TwitchAccountEntity;
 
   @RelationId((link: AccountLinkEntity) => link.mixerAccount)
-  mixerAccountId: string;
+  mixerAccountId: number;
 
   @ManyToOne(() => MixerAccountEntity, {
     nullable: true,
