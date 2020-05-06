@@ -36,7 +36,7 @@ export class AppController {
   // }
 
   @Get('encounteredClips/:membershipType/:membershipId')
-  @CacheTTL(3600)
+  @CacheTTL(300)
   async getAllEncounteredVideos(
     @Param('membershipType') membershipType: BungieMembershipType,
     @Param('membershipId') membershipId: string,
@@ -55,7 +55,7 @@ export class AppController {
   }
 
   @Get('instance/:instanceId')
-  @CacheTTL(3600)
+  @CacheTTL(300)
   async getClipsForActivity(@Param('instanceId') instanceId: string) {
     return this.appService.getVideosForInstance(instanceId);
   }
