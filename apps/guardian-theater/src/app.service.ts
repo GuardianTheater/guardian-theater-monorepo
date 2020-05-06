@@ -848,13 +848,13 @@ export class AppService {
   //   return instances;
   // }
 
-  async getReportedLinks() {
-    const links = await getConnection()
-      .createQueryBuilder(AccountLinkVoteEntity, 'votes')
-      .leftJoinAndSelect('votes.link', 'link')
-      .getMany();
-    return links;
-  }
+  // async getReportedLinks() {
+  //   const links = await getConnection()
+  //     .createQueryBuilder(AccountLinkVoteEntity, 'votes')
+  //     .leftJoinAndSelect('votes.link', 'link')
+  //     .getMany();
+  //   return links;
+  // }
 
   async reportLink(linkId: string, membershipId: string) {
     const videoAccountRef = this.firestoreService.db
