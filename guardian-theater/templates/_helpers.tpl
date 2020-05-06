@@ -26,11 +26,11 @@ If release name contains chart name it will be used as a full name.
 {{- printf "activity-harvester" -}}
 {{- end -}}
 
-{{- define "guardian-theater.activity-harvester.fullname" -}}
+{{- define "guardian-theater.account-harvester.fullname" -}}
 {{- printf "account-harvester" -}}
 {{- end -}}
 
-{{- define "guardian-theater.activity-harvester.fullname" -}}
+{{- define "guardian-theater.video-harvester.fullname" -}}
 {{- printf "video-harvester" -}}
 {{- end -}}
 
