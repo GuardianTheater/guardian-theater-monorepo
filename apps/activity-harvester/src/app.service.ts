@@ -56,7 +56,7 @@ export class AppService {
     const profilesToHarvestRes = await this.firestoreService.db
       .collection('profiles')
       .orderBy('lastInstanceCheck', 'asc')
-      .limit(50)
+      .limit(25)
       .get();
 
     for (const doc of profilesToHarvestRes.docs) {

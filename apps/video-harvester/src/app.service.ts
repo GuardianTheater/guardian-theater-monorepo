@@ -54,13 +54,13 @@ export class AppService {
       .collection('videoAccounts')
       .where('fresh', '==', true)
       .orderBy('lastClipCheck', 'asc')
-      .limit(50)
+      .limit(25)
       .get();
 
     const staleAccountsToHarvestRes = await this.firestoreService.db
       .collection('videoAccounts')
       .orderBy('lastClipCheck', 'asc')
-      .limit(10)
+      .limit(5)
       .get();
 
     const accountsToHarvest: FirebaseFirestore.QueryDocumentSnapshot<

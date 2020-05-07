@@ -54,7 +54,7 @@ export class AppService {
     const staleProfilesToHarvestRes = await this.firestoreService.db
       .collection('profiles')
       .orderBy('lastAccountCheck', 'asc')
-      .limit(50)
+      .limit(25)
       .get();
 
     const profilesToHarvest: FirebaseFirestore.QueryDocumentSnapshot<
