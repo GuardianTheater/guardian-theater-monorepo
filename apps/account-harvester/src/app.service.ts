@@ -210,17 +210,17 @@ export class AppService {
                 .replace('ttv/', '')
                 .replace('[ttv]', '')
                 .replace('ttv', '')
+                .replace('tv', '')
             ) {
               namesToCheck.push(
-                name
-                  .replace(/\s/g, '')
-                  .replace('twitch.tv/', '')
-                  .replace('t.tv/', '')
-                  .replace('twitch/', '')
-                  .replace('ttv/', '')
-                  .replace('[ttv]', '')
-                  .replace('ttv', ''),
+                name.replace(/\s/g, '').replace('twitch.tv/', ''),
               );
+              namesToCheck.push(name.replace(/\s/g, '').replace('t.tv/', ''));
+              namesToCheck.push(name.replace(/\s/g, '').replace('twitch/', ''));
+              namesToCheck.push(name.replace(/\s/g, '').replace('ttv/', ''));
+              namesToCheck.push(name.replace(/\s/g, '').replace('[ttv]', ''));
+              namesToCheck.push(name.replace(/\s/g, '').replace('ttv', ''));
+              namesToCheck.push(name.replace(/\s/g, '').replace('tv', ''));
             }
           }
           const mixerSearchPromises: Promise<
