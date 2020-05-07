@@ -209,6 +209,7 @@ export class AppService {
                 .replace('twitch/', '')
                 .replace('ttv/', '')
                 .replace('[ttv]', '')
+                .replace('ttv', '')
             ) {
               namesToCheck.push(
                 name
@@ -217,7 +218,8 @@ export class AppService {
                   .replace('t.tv/', '')
                   .replace('twitch/', '')
                   .replace('ttv/', '')
-                  .replace('[ttv]', ''),
+                  .replace('[ttv]', '')
+                  .replace('ttv', ''),
               );
             }
           }
