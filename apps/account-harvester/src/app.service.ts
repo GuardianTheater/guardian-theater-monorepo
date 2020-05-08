@@ -200,27 +200,25 @@ export class AppService {
             }
           }
           for (const name of namesToCheck) {
-            if (
-              name !==
-              name
-                .replace(/\s/g, '')
-                .replace('twitch.tv/', '')
-                .replace('t.tv/', '')
-                .replace('twitch/', '')
-                .replace('ttv/', '')
-                .replace('[ttv]', '')
-                .replace('ttv', '')
-                .replace('tv', '')
-            ) {
-              namesToCheck.push(
-                name.replace(/\s/g, '').replace('twitch.tv/', ''),
-              );
-              namesToCheck.push(name.replace(/\s/g, '').replace('t.tv/', ''));
-              namesToCheck.push(name.replace(/\s/g, '').replace('twitch/', ''));
-              namesToCheck.push(name.replace(/\s/g, '').replace('ttv/', ''));
-              namesToCheck.push(name.replace(/\s/g, '').replace('[ttv]', ''));
-              namesToCheck.push(name.replace(/\s/g, '').replace('ttv', ''));
-              namesToCheck.push(name.replace(/\s/g, '').replace('tv', ''));
+            const prefixes = [
+              'twitch.tv/',
+              'Twitch.tv/',
+              't.tv/',
+              'twitch/',
+              'ttv/',
+              '[ttv]',
+              'TTV',
+              'ttv',
+              'tv',
+            ];
+            for (const prefix of prefixes) {
+              if (
+                namesToCheck.indexOf(
+                  name.replace(/\s/g, '').replace(prefix, ''),
+                ) < 0
+              ) {
+                namesToCheck.push(name.replace(/\s/g, '').replace(prefix, ''));
+              }
             }
           }
           const mixerSearchPromises: Promise<
