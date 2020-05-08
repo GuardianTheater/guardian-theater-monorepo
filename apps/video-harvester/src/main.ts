@@ -7,5 +7,6 @@ async function bootstrap() {
   // eslint-disable-next-line @typescript-eslint/no-unused-vars
   const appService = app.get(AppService);
   await appService.startHarvestQueue();
+  throw `Error harvesting videos`;
 }
 bootstrap();

@@ -35,3 +35,4 @@ lerna-debug.log*
 .env
 deploy-settings.yaml
 firebase-key.json
+deploy-config.yaml
