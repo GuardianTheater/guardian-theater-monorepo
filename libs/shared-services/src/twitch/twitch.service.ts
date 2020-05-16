@@ -14,7 +14,11 @@ export class TwitchService {
   }
 
   async authenticateTwitch() {
-    if (this.accessToken && new Date() < this.tokenExpiration) {
+    if (
+      this.accessToken &&
+      this.tokenExpiration &&
+      new Date() < this.tokenExpiration
+    ) {
       return {
         Authorization: `Bearer ${this.accessToken}`,
       };
